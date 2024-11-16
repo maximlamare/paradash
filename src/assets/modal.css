@@ -1,0 +1,7 @@
+/* CSS rules for modals */
+.modal-text{
+    @apply block text-gray-700 dark:text-gray-300;
+  }
+.modal-dropdown{
+    @apply w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-gray-300;
+  }
