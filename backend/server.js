@@ -37,6 +37,15 @@ const db = new sqlite3.Database('./database.db', (err) => {
             total_flight_time INTEGER,
             number_of_flights INTEGER
         )`);
+        db.run(`CREATE TABLE IF NOT EXISTS maintenance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            gear_id INTEGER,
+            maintenance_date TEXT,
+            maintenance_type TEXT,
+            by_whom TEXT,
+            description TEXT,
+            FOREIGN KEY (gear_id) REFERENCES gear(id)
+        )`);
     }
 });
 
@@ -93,7 +102,60 @@ app.put('/gear/:id', (req, res) => {
     );
 });
 
+// MAINTENANCE DATABASE 
+app.get('/maintenance', (req, res) => {
+    db.all('SELECT * FROM maintenance', [], (err, rows) => {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        res.json({ data: rows });
+    });
+});
 
+app.post('/maintenance', (req, res) => {
+    const { gear_id, maintenance_date, maintenance_type, by_whom, description } = req.body;
+    db.run(
+        'INSERT INTO maintenance (gear_id, maintenance_date, maintenance_type, by_whom, description) VALUES (?, ?, ?, ?, ?)',
+        [gear_id, maintenance_date, maintenance_type, by_whom, description],
+        function (err) {
+            if (err) {
+                res.status(400).json({ error: err.message });
+                return;
+            }
+            res.json({ id: this.lastID });
+        }
+    );
+});
+
+app.put('/maintenance/:id', (req, res) => {
+    const { id } = req.params;
+    const { gear_id, maintenance_date, maintenance_type, by_whom, description } = req.body;
+    db.run(
+        'UPDATE maintenance SET gear_id = ?, maintenance_date = ?, maintenance_type = ?, by_whom = ?, description = ?, WHERE id = ?',
+        [gear_id, maintenance_date, maintenance_type, by_whom, description, id],
+        function (err) {
+            if (err) {
+                res.status(400).json({ error: err.message });
+                return;
+            }
+            res.json({ message: 'Maintenance record updated', changes: this.changes });
+        }
+    );
+});
+
+app.delete('/maintenance/:id', (req, res) => {
+    const { id } = req.params;
+    db.run('DELETE FROM maintenance WHERE id = ?', [id], function (err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        res.json({ message: 'Maintenance record deleted', changes: this.changes });
+    });
+});
+
+// The rest should be sorted later
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });

@@ -20,22 +20,35 @@
           v-for="item in category.items"
           :key="item.id"
           class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border dark:border-gray-700 mb-4"
+          @click="openGearDetailsModal(item)"
         >
           <div class="p-4">
             <div class="flex justify-between items-center">
               <h3 class="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
                 {{ item.brand }} {{ item.model }}<span v-if="item.manufacturing_date"> ({{ new Date(item.manufacturing_date).getFullYear() }})</span>
               </h3>
-              <button
-                @click="editEntry(item)"
-                class="hover:bg-blue-600 rounded-lg"
-              >
-                <img
-                  src="@/assets/logos/edit24.png"
-                  alt="Edit"
-                  class="h-6 w-6"
+              <div class="flex space-x-2">
+                <button
+                  @click.stop="openMaintenanceModal(item)"
+                  class="logo-button"
                 >
-              </button>
+                  <img
+                    src="@/assets/logos/spanner.png"
+                    alt="Edit"
+                    class="h-5 w-5"
+                  >
+                </button>
+                <button
+                  @click.stop="editEntry(item)"
+                  class="logo-button"
+                >
+                  <img
+                    src="@/assets/logos/edit24.png"
+                    alt="Edit"
+                    class="h-6 w-6"
+                  >
+                </button>
+              </div>
             </div>
             <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">
               Purchase Date: <span
@@ -50,6 +63,11 @@
             <p class="text-gray-700 dark:text-gray-300">
               <strong>Number of Flights:</strong> {{ item.number_of_flights }}
             </p>
+            <p
+              v-if="isMaintenanceOverdue(item)"
+              class="text-red-500"
+            ><strong>Yearly check overdue!</strong></p>
+
           </div>
         </div>
       </div>
@@ -308,6 +326,80 @@
         </div>
       </form>
     </Modal>
+
+    <Modal
+      v-if="showMaintenanceModal"
+      @close="showMaintenanceModal = false"
+      title="Add Maintenance"
+    >
+      <form @submit.prevent="saveMaintenance">
+        <div class="mb-4">
+          <label
+            for="maintenance_date"
+            class="modal-text"
+          >Maintenance Date</label>
+          <input
+            v-model="maintenance.maintenance_date"
+            id="maintenance_date"
+            type="date"
+            class="modal-dropdown"
+          />
+        </div>
+        <div class="mb-4">
+          <label
+            for="maintenance_type"
+            class="modal-text"
+          >Maintenance Type</label>
+          <select
+            v-model="maintenance.maintenance_type"
+            id="maintenance_type"
+            class="modal-dropdown"
+          >
+            <option value="Check">Check</option>
+            <option value="Repair">Repair</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="mb-4">
+          <label
+            for="by_whom"
+            class="modal-text"
+          >Workshop</label>
+          <input
+            v-model="maintenance.by_whom"
+            id="by_whom"
+            type="text"
+            class="modal-dropdown"
+            placeholder="Enter workshop name"
+          />
+        </div>
+        <div class="mb-4">
+          <label
+            for="description"
+            class="modal-text"
+          >Description</label>
+          <textarea
+            v-model="maintenance.description"
+            id="description"
+            class="modal-dropdown"
+          ></textarea>
+        </div>
+        <div class="flex justify-center">
+          <button
+            type="submit"
+            class="button-blue"
+          >Save</button>
+        </div>
+      </form>
+    </Modal>
+
+    <GearDetailsModal
+      v-if="showGearDetailsModal"
+      @close="closeGearDetailsModal"
+      :gear="selectedGear"
+      :maintenanceRecords="maintenanceRecords"
+    />
+
   </div>
 </template>
 
@@ -315,10 +407,12 @@
 import axios from "axios";
 import { nextTick } from "vue";
 import Modal from "./Modal.vue";
+import GearDetailsModal from "./gearDetailsModal.vue";
 
 export default {
   components: {
     Modal,
+    GearDetailsModal,
   },
   data() {
     return {
@@ -327,6 +421,8 @@ export default {
       models: [],
       showAddModal: false,
       showEditModal: false,
+      showMaintenanceModal: false,
+      showGearDetailsModal: false,
       newBrand: false,
       newBrandName: "",
       newModel: false,
@@ -350,6 +446,16 @@ export default {
         total_flight_time: 0,
         number_of_flights: 0,
       },
+      maintenance: {
+        id: null,
+        gear_id: null,
+        maintenance_date: "",
+        maintenance_type: "",
+        by_whom: "",
+        description: "",
+      },
+      selectedGear: null,
+      maintenanceRecords: [],
     };
   },
   created() {
@@ -365,35 +471,23 @@ export default {
             category: "Gear",
           }));
           this.equipment = gear; // Reset the equipment array before appending new data
+          // Fetch maintenance records for each gear
+          gear.forEach((item) => {
+            axios
+              .get(`http://localhost:3000/maintenance?gear_id=${item.id}`)
+              .then((response) => {
+                this.maintenanceRecords = [
+                  ...this.maintenanceRecords,
+                  ...response.data.data,
+                ];
+              })
+              .catch((error) => {
+                console.error("Error fetching maintenance records:", error);
+              });
+          });
         })
         .catch((error) => {
           console.error("Error fetching gear:", error);
-        });
-
-      axios
-        .get("http://localhost:3000/harnesses")
-        .then((response) => {
-          const harnesses = response.data.data.map((item) => ({
-            ...item,
-            category: "Harnesses",
-          }));
-          this.equipment = [...this.equipment, ...harnesses];
-        })
-        .catch((error) => {
-          console.error("Error fetching harnesses:", error);
-        });
-
-      axios
-        .get("http://localhost:3000/rescue_parachutes")
-        .then((response) => {
-          const parachutes = response.data.data.map((item) => ({
-            ...item,
-            category: "Rescue Parachutes",
-          }));
-          this.equipment = [...this.equipment, ...parachutes];
-        })
-        .catch((error) => {
-          console.error("Error fetching rescue parachutes:", error);
         });
     },
     fetchBrandsAndModels() {
@@ -471,7 +565,6 @@ export default {
         this.newModelName = "";
       }
     },
-
     addGear() {
       axios
         .post("http://localhost:3000/gear", this.newGear)
@@ -519,6 +612,68 @@ export default {
         .catch((error) => {
           console.error("Error deleting gear:", error);
         });
+    },
+    openMaintenanceModal(item) {
+      this.resetMaintenanceForm();
+      this.maintenance.gear_id = item.id;
+      this.showMaintenanceModal = true;
+    },
+    saveMaintenance() {
+      // Add new maintenance record
+      axios
+        .post("http://localhost:3000/maintenance", this.maintenance)
+        .then(() => {
+          this.fetchEquipment(); // Update the UI to reflect changes
+          this.showMaintenanceModal = false; // Close the modal
+          this.resetMaintenanceForm(); // Clear the form
+        })
+        .catch((error) => {
+          console.error("Error adding maintenance record:", error);
+        });
+    },
+    resetMaintenanceForm() {
+      this.maintenance = {
+        id: null,
+        gear_id: null,
+        maintenance_date: "",
+        maintenance_type: "",
+        by_whom: "",
+        description: "",
+      };
+    },
+    openGearDetailsModal(item) {
+      this.selectedGear = item;
+      axios
+        .get(`http://localhost:3000/maintenance?gear_id=${item.id}`)
+        .then((response) => {
+          this.maintenanceRecords = response.data.data.filter(
+            (record) => record.gear_id === item.id
+          );
+          this.showGearDetailsModal = true;
+        })
+        .catch((error) => {
+          console.error("Error fetching maintenance records:", error);
+        });
+    },
+    isMaintenanceOverdue(item) {
+      const lastMaintenance = this.maintenanceRecords
+        .filter(
+          (record) =>
+            record.gear_id === item.id && record.maintenance_type === "Check"
+        )
+        .sort(
+          (a, b) => new Date(b.maintenance_date) - new Date(a.maintenance_date)
+        )[0];
+      if (lastMaintenance) {
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+        return new Date(lastMaintenance.maintenance_date) < oneYearAgo;
+      }
+      return false;
+    },
+    closeGearDetailsModal() {
+      this.showGearDetailsModal = false;
+      this.fetchEquipment();
     },
   },
   computed: {
