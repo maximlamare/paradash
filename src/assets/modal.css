@@ -5,3 +5,16 @@
 .modal-dropdown{
     @apply w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-gray-300;
   }
+.modal-grid{
+    @apply py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-center;
+  }
+.modal-title{
+    @apply text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100;
+  }
+  .modal-overlay {
+    @apply fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50;
+  }
+  
+  .modal-container {
+    @apply bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-full h-full overflow-auto;
+  }
