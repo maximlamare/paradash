@@ -43,7 +43,7 @@
                   class="logo-button"
                 >
                   <img
-                    src="@/assets/logos/edit24.png"
+                    src="@/assets/logos/spanner.png"
                     alt="Edit"
                     class="h-6 w-6"
                   >
