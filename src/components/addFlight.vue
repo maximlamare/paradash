@@ -1,160 +1,170 @@
 <template>
-  <div>
-    <h1>Add Flight</h1>
-    <div class="input-group">
-      <label for="category">Category:</label>
-      <select id="category" v-model="newItem.category">
-        <option v-for="category in categories" :key="category" :value="category">{{ category }}</option>
-      </select>
+  <div class="page-bg-grey">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mx-auto">
+        Add Flight
+      </h1>
     </div>
-    <div class="input-group">
-      <label for="type">Type:</label>
-      <select id="type" v-model="newItem.type">
-        <option v-for="type in types" :key="type" :value="type">{{ type }}</option>
-      </select>
+    <input
+      type="file"
+      ref="igcFileInput"
+      @change="handleFileUpload"
+      accept=".igc"
+      class="hidden"
+    />
+    <button @click="openIGC" class="button-blue">Upload .igc file</button>
+    <h2 class="page-title2 mt-8">Enter flight details</h2>
+    <h3 class="page-title3">Date</h3>
+    <div>
+      <div class="mb-4">
+        <input
+          class="modal-dropdown w-1/4"
+          type="date"
+          id="date"
+          @input="updateFlightField('date', $event)"
+          :value="flight.date"
+        />
+      </div>
+      <h3 class="page-title3">Category</h3>
+      <div class="mb-4">
+        <input
+          class="modal-dropdown w-1/4"
+          type="text"
+          id="start"
+          @input="updateFlightField('start', $event)"
+          :value="flight.start"
+        />
+      </div>
+      <h3 class="page-title3">Type</h3>
+      <div class="mb-4">
+        <input
+          class="modal-dropdown w-1/4"
+          type="text"
+          id="start"
+          @input="updateFlightField('start', $event)"
+          :value="flight.start"
+        />
+      </div>
+      <h3 class="page-title3">Start location</h3>
+      <div class="mb-4">
+        <input
+          class="modal-dropdown w-1/4"
+          type="text"
+          id="start"
+          @input="updateFlightField('start', $event)"
+          :value="flight.start"
+        />
+      </div>
+      <h3 class="page-title3">Landing location</h3>
+      <div class="mb-4">
+        <input
+          class="modal-dropdown w-1/4"
+          type="text"
+          id="landing"
+          @input="updateFlightField('landing', $event)"
+          :value="flight.landing"
+        />
+      </div>
+      <h3 class="page-title3">Flight duration (hh:mm)</h3>
+      <div class="mb-4">
+        <input
+          class="modal-dropdown w-1/4"
+          type="text"
+          id="duration"
+          @input="updateFlightField('duration', $event)"
+          :value="flight.duration"
+        />
+      </div>
+      <h3 class="page-title3">Glider</h3>
+      <div class="mb-4">
+        <input
+          class="modal-dropdown w-1/4"
+          type="text"
+          id="duration"
+          @input="updateFlightField('duration', $event)"
+          :value="flight.duration"
+        />
+      </div>
+      <h3 class="page-title3">Links (Strava, XContest...)</h3>
+      <div class="mb-4">
+        <input
+          class="modal-dropdown w-1/4"
+          type="text"
+          id="duration"
+          @input="updateFlightField('duration', $event)"
+          :value="flight.duration"
+        />
+      </div>
+      <h3 class="page-title3">Comments</h3>
+      <div class="mb-4">
+        <input
+          class="modal-dropdown w-1/4"
+          type="text"
+          id="duration"
+          @input="updateFlightField('duration', $event)"
+          :value="flight.duration"
+        />
+      </div>
     </div>
-    <div class="input-group">
-      <label for="date">Date:</label>
-      <date-picker id="date" v-model="newItem.date" placeholder="Select Date"></date-picker>
-    </div>
-    <div class="input-group">
-      <label for="glider">Glider:</label>
-      <input id="glider" v-model="newItem.glider" placeholder="Glider" />
-    </div>
-    <div class="input-group">
-      <label for="takeoff_location">Takeoff Location:</label>
-      <input id="takeoff_location" v-model="newItem.takeoff_location" placeholder="Takeoff Location" />
-    </div>
-    <div class="input-group">
-      <label for="landing_location">Landing Location:</label>
-      <input id="landing_location" v-model="newItem.landing_location" placeholder="Landing Location" />
-    </div>
-    <div class="input-group">
-      <label for="flight_time">Flight Time:</label>
-      <input id="flight_time" v-model="newItem.flight_time" placeholder="Flight Time" />
-    </div>
-    <div class="input-group">
-      <label for="links">Links:</label>
-      <input id="links" v-model="newItem.links" placeholder="Links" />
-    </div>
-    <div class="input-group">
-      <label for="comments">Comments:</label>
-      <input id="comments" v-model="newItem.comments" placeholder="Comments" />
-    </div>
-    <div class="input-group">
-      <label for="igc_file_path">IGC File Path:</label>
-      <input id="igc_file_path" v-model="newItem.igc_file_path" placeholder="IGC File Path" />
-    </div>
-    <button @click="addItem">Add</button>
-    <button @click="clearItems">Clear All</button>
   </div>
 </template>
 
 <script>
-import axios from 'axios';
-import DatePicker from 'vue3-datepicker';
+import { processIGCContent } from "@/utils/igcProcessor";
 
 export default {
-  components: {
-    DatePicker
-  },
   data() {
     return {
-      items: [],
-      newItem: {
-        category: '',
-        type: '',
-        date: '',
-        glider: '',
-        takeoff_location: '',
-        landing_location: '',
-        flight_time: '',
-        links: '',
-        comments: '',
-        igc_file_path: ''
+      flight: {
+        date: "",
+        start: "",
+        landing: "",
+        duration: "",
       },
-      categories: ['Category 1', 'Category 2', 'Category 3'], // Add your categories here
-      types: ['Type 1', 'Type 2', 'Type 3'] // Add your types here
     };
   },
-  created() {
-    this.setDefaultValues();
-    this.fetchItems();
-  },
   methods: {
-    setDefaultValues() {
-      if (this.categories.length > 0) {
-        this.newItem.category = this.categories[0];
-      }
-      if (this.types.length > 0) {
-        this.newItem.type = this.types[0];
-      }
+    openIGC() {
+      this.$refs.igcFileInput.click();
     },
-    fetchItems() {
-      axios.get('http://localhost:3000/items')
-        .then(response => {
-          this.items = response.data.data;
-        })
-        .catch(error => {
-          console.error('Error fetching items:', error);
-        });
-    },
-    addItem() {
-      // Format the date to only include day, month, and year
-      const formattedDate = new Date(this.newItem.date).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      });
+    handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const formData = new FormData();
+        formData.append("igcFile", file);
 
-      const newItemWithFormattedDate = { ...this.newItem, date: formattedDate };
-
-      axios.post('http://localhost:3000/items', newItemWithFormattedDate)
-        .then(response => {
-          this.items.push({ ...newItemWithFormattedDate, id: response.data.id });
-          this.newItem = {
-            category: this.categories.length > 0 ? this.categories[0] : '',
-            type: this.types.length > 0 ? this.types[0] : '',
-            date: '',
-            glider: '',
-            takeoff_location: '',
-            landing_location: '',
-            flight_time: '',
-            links: '',
-            comments: '',
-            igc_file_path: ''
-          };
+        fetch("http://localhost:3000/upload", {
+          method: "POST",
+          body: formData,
         })
-        .catch(error => {
-          console.error('Error adding item:', error);
-        });
+          .then((response) => response.text())
+          .then(() => {
+            this.processIGCFile(file);
+          })
+          .catch((error) => {
+            console.error("Error uploading file:", error);
+          });
+      }
     },
-    clearItems() {
-      axios.delete('http://localhost:3000/items')
-        .then(() => {
-          this.items = [];
-        })
-        .catch(error => {
-          console.error('Error clearing items:', error);
-        });
-    }
-  }
+    async processIGCFile(file) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const igcContent = e.target.result;
+        const result = await processIGCContent(igcContent);
+        this.flight.date = result.flightDate;
+        this.flight.start = result.flightTakeoff;
+        this.flight.landing = result.flightLanding;
+        this.flight.duration = result.flightDuration;
+      };
+      reader.readAsText(file);
+    },
+    updateFlightField(field, event) {
+      this.flight[field] = event.target.value;
+    },
+  },
 };
 </script>
 
-<style scoped>
-.input-group {
-  margin-bottom: 10px;
-}
-.input-group label {
-  display: block;
-  margin-bottom: 5px;
-}
-.input-group input,
-.input-group select,
-.input-group date-picker {
-  width: 100%;
-  padding: 8px;
-  box-sizing: border-box;
-}
+<style>
+@import "@/assets/pages.css";
 </style>
