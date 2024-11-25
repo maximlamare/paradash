@@ -60,6 +60,11 @@
 
           <div class="flex justify-end mt-4">
             <button
+              v-if="!isEditMode"
+              @click="openMaintenanceModal(gear)"
+              class="button-blue mr-2"
+            >Add Maintenance record</button>
+            <button
               v-if="isEditMode"
               @click="saveChanges"
               class="button-blue mr-2"
@@ -75,12 +80,83 @@
       </div>
     </div>
   </div>
+  <Modal
+    v-if="showMaintenanceModal"
+    @close="showMaintenanceModal = false"
+    title="Add Maintenance"
+    :style="{ zIndex: 1050 }"
+  >
+    <form @submit.prevent="saveMaintenance">
+      <div class="mb-4">
+        <label
+          for="maintenance_date"
+          class="modal-text"
+        >Maintenance Date</label>
+        <input
+          v-model="maintenance.maintenance_date"
+          id="maintenance_date"
+          type="date"
+          class="modal-dropdown"
+        />
+      </div>
+      <div class="mb-4">
+        <label
+          for="maintenance_type"
+          class="modal-text"
+        >Maintenance Type</label>
+        <select
+          v-model="maintenance.maintenance_type"
+          id="maintenance_type"
+          class="modal-dropdown"
+        >
+          <option value="Check">Check</option>
+          <option value="Repair">Repair</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="mb-4">
+        <label
+          for="by_whom"
+          class="modal-text"
+        >Workshop</label>
+        <input
+          v-model="maintenance.by_whom"
+          id="by_whom"
+          type="text"
+          class="modal-dropdown"
+          placeholder="Enter workshop name"
+        />
+      </div>
+      <div class="mb-4">
+        <label
+          for="description"
+          class="modal-text"
+        >Description</label>
+        <textarea
+          v-model="maintenance.description"
+          id="description"
+          class="modal-dropdown"
+        ></textarea>
+      </div>
+      <div class="flex justify-center">
+        <button
+          type="submit"
+          class="button-blue"
+        >Save</button>
+      </div>
+    </form>
+  </Modal>
+
 </template>
 
 <script>
 import axios from "axios";
+import Modal from "./Modal.vue";
 
 export default {
+  components: {
+    Modal,
+  },
   props: {
     gear: {
       type: Object,
@@ -96,6 +172,7 @@ export default {
       isEditMode: false,
       editableRecords: JSON.parse(JSON.stringify(this.maintenanceRecords)),
       recordsToDelete: [],
+      showMaintenanceModal: false,
     };
   },
   methods: {
@@ -129,6 +206,37 @@ export default {
       });
       this.recordsToDelete = []; // Clear the deletion list
       this.isEditMode = false;
+    },
+    // MAINTENANCE RECORDS
+    // Open the modal to add a new maintenance record
+    openMaintenanceModal(item) {
+      this.resetMaintenanceForm();
+      this.maintenance.gear_id = item.id;
+      this.showMaintenanceModal = true;
+    },
+    // Reset the maintenance form
+    resetMaintenanceForm() {
+      this.maintenance = {
+        id: null,
+        gear_id: null,
+        maintenance_date: "",
+        maintenance_type: "",
+        by_whom: "",
+        description: "",
+      };
+    },
+    saveMaintenance() {
+      // Add new maintenance record
+      axios
+        .post("http://localhost:3000/maintenance", this.maintenance)
+        .then(() => {
+          this.showMaintenanceModal = false; // Close the modal
+          this.resetMaintenanceForm(); // Clear the form
+          this.$emit("maintenance-saved");
+        })
+        .catch((error) => {
+          console.error("Error adding maintenance record:", error);
+        });
     },
   },
   watch: {
