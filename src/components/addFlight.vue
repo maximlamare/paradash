@@ -111,6 +111,7 @@
 
 <script>
 import { processIGCContent } from "@/utils/igcProcessor";
+import axios from "axios";
 
 export default {
   data() {
@@ -150,7 +151,15 @@ export default {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const igcContent = e.target.result;
-        const result = await processIGCContent(igcContent);
+        const response = await axios
+          .get("http://localhost:3000/launch_sites")
+          .catch((error) => {
+            console.error("Error fetching launch sites:", error);
+          });
+        this.sites = response.data; // Assuming response.data contains the array of objects
+
+        console.log("This sites:", this.sites);
+        const result = await processIGCContent(igcContent, this.sites);
         this.flight.date = result.flightDate;
         this.flight.start = result.flightTakeoff;
         this.flight.landing = result.flightLanding;

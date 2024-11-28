@@ -1,7 +1,7 @@
 import igcParser from "igc-parser";
-const { getDHVStartPlaceName, getOSMPlaceName } = require("./geoOperations.js");
+const { getStartPlaceName, getOSMPlaceName } = require("./geoOperations.js");
 
-export async function processIGCContent(content) {
+export async function processIGCContent(content, launchsites) {
   // Parse the IGC data
   const flightData = igcParser.parse(content);
 
@@ -22,15 +22,19 @@ export async function processIGCContent(content) {
   // Extract latitude and longitude from the first fix
   const startLatitude = flightData.fixes[0].latitude;
   const startLongitude = flightData.fixes[0].longitude;
+
   const endLatitude = flightData.fixes[flightData.fixes.length - 1].latitude;
   const endLongitude = flightData.fixes[flightData.fixes.length - 1].longitude;
 
   // Get the location names
-  const start = await getDHVStartPlaceName(startLatitude, startLongitude);
+  const startLocation = getStartPlaceName(
+    startLatitude,
+    startLongitude,
+    launchsites
+  );
   const landingPlace = await getOSMPlaceName(endLatitude, endLongitude);
 
   // Convert end location to a string with city and country
-  const startLocation = `${start.Name}, ${start.Country}`;
   const endLocation = `${landingPlace.city}, ${landingPlace.country}`;
 
   return {

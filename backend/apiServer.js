@@ -10,14 +10,6 @@ app.use(bodyParser.json());
 app.use(cors());
 
 app.use(
-  "/api",
-  createProxyMiddleware({
-    target: "https://www.paragliding.earth/api",
-    changeOrigin: true,
-    logLevel: "debug",
-  })
-);
-app.use(
   "/reverse",
   createProxyMiddleware({
     target: "https://nominatim.openstreetmap.org/reverse",
