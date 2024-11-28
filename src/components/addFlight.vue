@@ -27,13 +27,20 @@
       </div>
       <h3 class="page-title3">Category</h3>
       <div class="mb-4">
-        <input
+        <select
           class="modal-dropdown w-1/4"
-          type="text"
-          id="start"
-          @input="updateFlightField('start', $event)"
-          :value="flight.start"
-        />
+          id="category"
+          @change="updateFlightField('category', $event)"
+          :value="flight.category"
+        >
+          <option
+            v-for="category in getCategories"
+            :key="category"
+            :value="category"
+          >
+            {{ category }}
+          </option>
+        </select>
       </div>
       <h3 class="page-title3">Type</h3>
       <div class="mb-4">
@@ -110,6 +117,7 @@
 </template>
 
 <script>
+import { mapGetters } from "vuex";
 import { processIGCContent } from "@/utils/igcProcessor";
 import axios from "axios";
 
@@ -123,6 +131,9 @@ export default {
         duration: "",
       },
     };
+  },
+  computed: {
+    ...mapGetters(["getCategories"]),
   },
   methods: {
     openIGC() {
