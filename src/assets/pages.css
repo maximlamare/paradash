@@ -2,6 +2,9 @@
 .page-bg-grey {
   @apply bg-gray-100 dark:bg-gray-900 min-h-screen p-8 w-full;
 }
+.page-title1 {
+  @apply text-3xl font-bold text-gray-900 dark:text-gray-100 mx-auto;
+}
 .page-title2 {
   @apply text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100;
 }
