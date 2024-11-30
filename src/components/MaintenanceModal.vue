@@ -4,22 +4,18 @@
       <h2 class="modal-title">{{ title }}</h2>
       <form @submit.prevent="saveMaintenance">
         <div class="mb-4">
-          <label
-            for="maintenance_date"
-            class="modal-text"
-          >Maintenance Date</label>
+          <label for="maintenance_date" class="modal-text"
+            >Maintenance Date</label
+          >
           <input
             v-model="localMaintenance.maintenance_date"
             id="maintenance_date"
             type="date"
             class="modal-input"
-          >
+          />
         </div>
         <div class="mb-4">
-          <label
-            for="description"
-            class="modal-text"
-          >Description</label>
+          <label for="description" class="modal-text">Description</label>
           <textarea
             v-model="localMaintenance.description"
             id="description"
@@ -27,29 +23,23 @@
           ></textarea>
         </div>
         <div class="mb-4">
-          <label
-            for="cost"
-            class="modal-text"
-          >Cost</label>
+          <label for="cost" class="modal-text">Cost</label>
           <input
             v-model="localMaintenance.cost"
             id="cost"
             type="number"
             class="modal-input"
-          >
+          />
         </div>
         <div class="flex justify-end">
-          <button
-            type="submit"
-            class="button-blue"
-          >Save</button>
+          <button type="submit" class="button-blue">Save</button>
         </div>
       </form>
     </div>
   </div>
 </template>
-  
-  <script>
+
+<script>
 export default {
   props: {
     title: {
@@ -70,10 +60,13 @@ export default {
     saveMaintenance() {
       this.$emit("save", this.localMaintenance);
     },
+    closeModal() {
+      this.$emit("close");
+    },
   },
 };
 </script>
-  
-  <style scoped>
+
+<style scoped>
 @import "@/assets/modal.css";
 </style>

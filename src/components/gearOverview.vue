@@ -344,7 +344,9 @@ export default {
     };
   },
   created() {
-    this.fetchEquipment();
+    this.fetchSettings().then(() => {
+      this.fetchEquipment();
+    });
   },
   methods: {
     fetchEquipment() {
@@ -390,6 +392,17 @@ export default {
         })
         .catch((error) => {
           console.error("Error fetching brands and models:", error);
+        });
+    },
+    fetchSettings() {
+      return axios
+        .get("http://localhost:3002/get-settings")
+        .then((response) => {
+          this.gliderWarningDuration = response.data.gliderWarningDuration;
+          this.rescueWarningDuration = response.data.rescueWarningDuration;
+        })
+        .catch((error) => {
+          console.error("Error fetching settings:", error);
         });
     },
     refreshMaintenanceRecords() {
@@ -528,7 +541,25 @@ export default {
           console.error("Error fetching maintenance records:", error);
         });
     },
+    closeGearDetailsModal() {
+      this.showGearDetailsModal = false;
+      this.selectedGear = null;
+      this.maintenanceRecords = [];
+      this.fetchEquipment();
+    },
     isMaintenanceOverdue(item) {
+      let warningDuration = null;
+
+      this.fetchSettings();
+
+      if (item.gear_type === "glider") {
+        warningDuration = this.gliderWarningDuration;
+      } else if (item.gear_type === "rescue") {
+        warningDuration = this.rescueWarningDuration;
+      }
+
+      if (!warningDuration) return false;
+
       const lastMaintenance = this.maintenanceRecords
         .filter(
           (record) =>
@@ -537,20 +568,19 @@ export default {
         .sort(
           (a, b) => new Date(b.maintenance_date) - new Date(a.maintenance_date)
         )[0];
+
       const compareDate = lastMaintenance
         ? new Date(lastMaintenance.maintenance_date)
         : new Date(item.manufacturing_date);
 
       if (compareDate) {
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-        return new Date(compareDate) < oneYearAgo;
+        const warningDate = new Date(compareDate);
+        warningDate.setMonth(
+          warningDate.getMonth() + parseInt(warningDuration)
+        );
+        return new Date() > warningDate;
       }
       return false;
-    },
-    closeGearDetailsModal() {
-      this.showGearDetailsModal = false;
-      this.fetchEquipment();
     },
   },
   computed: {
