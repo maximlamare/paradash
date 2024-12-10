@@ -101,7 +101,53 @@ const db = new sqlite3.Database("./database.db", (err) => {
         )`);
   }
 });
+// Fetching tables for export
+app.get("/get-tables", (req, res) => {
+  const query =
+    "SELECT name FROM sqlite_master WHERE type='table' AND name != 'sqlite_sequence'";
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    const tables = rows.map((row) => row.name);
+    res.json({ tables });
+  });
+});
+const dbFilePath = path.join(__dirname, "database.db");
 
+app.get("/export-database", (req, res) => {
+  res.download(dbFilePath, "database.db", (err) => {
+    if (err) {
+      res.status(500).json({ error: "Failed to export database" });
+    }
+  });
+});
+app.get("/export-csv", (req, res) => {
+  const tableName = req.query.table;
+  const query = `SELECT * FROM ${tableName}`;
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+
+    if (rows.length === 0) {
+      res.header("Content-Type", "text/csv");
+      res.attachment(`${tableName}.csv`);
+      res.send("");
+      return;
+    }
+
+    const headers = Object.keys(rows[0]).join(",");
+    const csv = rows.map((row) => Object.values(row).join(",")).join("\n");
+    const csvWithHeaders = `${headers}\n${csv}`;
+
+    res.header("Content-Type", "text/csv");
+    res.attachment(`${tableName}.csv`);
+    res.send(csvWithHeaders);
+  });
+});
 // GEAR DATABASE
 app.get("/gear", (req, res) => {
   db.all("SELECT * FROM gear", [], (err, rows) => {
