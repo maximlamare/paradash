@@ -4,6 +4,8 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
+const multer = require("multer");
+const { v4: uuidv4 } = require("uuid");
 
 const app = express();
 const port = 3002;
@@ -53,6 +55,30 @@ app.get("/get-settings", (req, res) => {
     const settings = JSON.parse(data);
     res.json(settings);
   });
+});
+
+// FILE MANAGEMENT
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, "uploads", "igc");
+    // Ensure directory exists
+    fs.mkdirSync(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${uuidv4()}`;
+    cb(null, `${uniqueSuffix}_${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage: storage });
+
+// Route for file upload
+app.post("/uploadFile", upload.single("igcFile"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).send("No file uploaded.");
+  }
+  res.status(200).send("File uploaded successfully");
 });
 
 app.listen(port, () => {

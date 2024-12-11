@@ -11,6 +11,7 @@
       class="hidden"
     />
     <button @click="openIGC" class="button-blue">Upload .igc file</button>
+    <p v-if="errorMessage" class="text-red-500 mt-2">{{ errorMessage }}</p>
     <h2 class="page-title2 mt-8">Enter flight details</h2>
     <h3 class="page-title3">Date</h3>
     <div>
@@ -85,33 +86,60 @@
       </div>
       <h3 class="page-title3">Glider</h3>
       <div class="mb-4">
-        <input
+        <select
           class="modal-dropdown w-1/4"
-          type="text"
-          id="duration"
-          @input="updateFlightField('duration', $event)"
-          :value="flight.duration"
-        />
+          id="glider"
+          @change="updateFlightField('glider', $event)"
+          :value="flight.glider"
+        >
+          <option
+            v-for="glider in gliders"
+            :key="glider.id"
+            :value="glider.model"
+          >
+            {{ glider.brand + " " + glider.model }}
+          </option>
+        </select>
       </div>
       <h3 class="page-title3">Links (Strava, XContest...)</h3>
       <div class="mb-4">
-        <input
-          class="modal-dropdown w-1/4"
-          type="text"
-          id="duration"
-          @input="updateFlightField('duration', $event)"
-          :value="flight.duration"
-        />
+        <div
+          v-for="(link, index) in flight.links"
+          :key="index"
+          class="flex items-center mb-2"
+        >
+          <input
+            class="modal-dropdown w-1/4"
+            type="text"
+            :id="'link-' + index"
+            @input="updateFlightField('links', $event, index)"
+            :value="link"
+          />
+          <button
+            v-if="index === flight.links.length - 1"
+            @click="addLink"
+            class="button-blue ml-2"
+          >
+            +
+          </button>
+          <button
+            v-if="index !== 0"
+            @click="removeLink(index)"
+            class="button-delete ml-2"
+          >
+            -
+          </button>
+        </div>
       </div>
       <h3 class="page-title3">Comments</h3>
       <div class="mb-4">
-        <input
+        <textarea
           class="modal-dropdown w-1/4"
-          type="text"
-          id="duration"
-          @input="updateFlightField('duration', $event)"
-          :value="flight.duration"
-        />
+          id="comments"
+          @input="updateFlightField('comments', $event)"
+          :value="flight.comments"
+          rows="4"
+        ></textarea>
       </div>
     </div>
   </div>
@@ -129,9 +157,13 @@ export default {
         start: "",
         landing: "",
         duration: "",
+        glider: "",
+        links: [""],
       },
       categories: [],
       types: [],
+      gliders: [],
+      errorMessage: "",
     };
   },
   computed: {},
@@ -145,7 +177,7 @@ export default {
         const formData = new FormData();
         formData.append("igcFile", file);
 
-        fetch("http://localhost:3000/upload", {
+        fetch("http://localhost:3002/uploadFile", {
           method: "POST",
           body: formData,
         })
@@ -168,18 +200,25 @@ export default {
             console.error("Error fetching launch sites:", error);
           });
         this.sites = response.data; // Assuming response.data contains the array of objects
-
-        console.log("This sites:", this.sites);
-        const result = await processIGCContent(igcContent, this.sites);
-        this.flight.date = result.flightDate;
-        this.flight.start = result.flightTakeoff;
-        this.flight.landing = result.flightLanding;
-        this.flight.duration = result.flightDuration;
+        try {
+          const result = await processIGCContent(igcContent, this.sites);
+          this.flight.date = result.flightDate;
+          this.flight.start = result.flightTakeoff;
+          this.flight.landing = result.flightLanding;
+          this.flight.duration = result.flightDuration;
+        } catch (error) {
+          console.error("Error processing IGC file:", error);
+          this.errorMessage = "Error processing IGC file: enter data manually.";
+        }
       };
       reader.readAsText(file);
     },
-    updateFlightField(field, event) {
-      this.flight[field] = event.target.value;
+    updateFlightField(field, event, index = null) {
+      if (field === "links" && index !== null) {
+        this.flight.links[index] = event.target.value;
+      } else {
+        this.flight[field] = event.target.value;
+      }
     },
     fetchSettings() {
       axios
@@ -198,9 +237,28 @@ export default {
           console.error("Error fetching settings:", error);
         });
     },
+    fetchGliders() {
+      axios
+        .get("http://localhost:3000/gear")
+        .then((response) => {
+          this.gliders = response.data.data.filter(
+            (item) => item.gear_type === "glider"
+          );
+        })
+        .catch((error) => {
+          console.error("Error fetching gliders:", error);
+        });
+    },
+    addLink() {
+      this.flight.links.push("");
+    },
+    removeLink(index) {
+      this.flight.links.splice(index, 1);
+    },
   },
   created() {
     this.fetchSettings();
+    this.fetchGliders(); // Add this line
   },
 };
 </script>
