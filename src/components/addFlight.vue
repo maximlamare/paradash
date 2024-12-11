@@ -206,6 +206,7 @@ export default {
           this.flight.start = result.flightTakeoff;
           this.flight.landing = result.flightLanding;
           this.flight.duration = result.flightDuration;
+          this.errorMessage = "";
         } catch (error) {
           console.error("Error processing IGC file:", error);
           this.errorMessage = "Error processing IGC file: enter data manually.";
