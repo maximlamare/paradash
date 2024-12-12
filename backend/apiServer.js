@@ -78,7 +78,10 @@ app.post("/uploadFile", upload.single("igcFile"), (req, res) => {
   if (!req.file) {
     return res.status(400).send("No file uploaded.");
   }
-  res.status(200).send("File uploaded successfully");
+  res.status(200).json({
+    message: "File uploaded successfully",
+    filePath: req.file.path, // Include the file path in the response
+  });
 });
 
 app.listen(port, () => {

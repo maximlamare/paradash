@@ -1,7 +1,5 @@
 const express = require("express");
-const multer = require("multer");
 const path = require("path");
-const fs = require("fs");
 const sqlite3 = require("sqlite3").verbose();
 const bodyParser = require("body-parser");
 const cors = require("cors");
@@ -12,7 +10,9 @@ const port = 3000;
 app.use(bodyParser.json());
 app.use(cors());
 
-const db = new sqlite3.Database("./database.db", (err) => {
+const dbPath = path.join(__dirname, "database.db");
+const dbLaunchSitesPath = path.join(__dirname, "launch_sites.db");
+const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error("Error opening database", err.message);
   } else {
@@ -26,7 +26,7 @@ const db = new sqlite3.Database("./database.db", (err) => {
         } else if (!row) {
           // Attach the launch_sites.db database
           db.run(
-            `ATTACH DATABASE './launch_sites.db' AS launch_sites_db`,
+            `ATTACH DATABASE '${dbLaunchSitesPath}' AS launch_sites_db`,
             (err) => {
               if (err) {
                 console.error("Error attaching launch_sites.db", err.message);
@@ -67,18 +67,20 @@ const db = new sqlite3.Database("./database.db", (err) => {
         }
       }
     );
-    db.run(`CREATE TABLE IF NOT EXISTS paragliding (
+    db.run(`CREATE TABLE IF NOT EXISTS flights (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             category TEXT,
             type TEXT,
             date TEXT,
-            glider TEXT,
+            glider INTEGER,
             takeoff_location TEXT,
             landing_location TEXT,
             flight_time TEXT,
             links TEXT,
             comments TEXT,
-            igc_file_path TEXT
+            igc_file_path TEXT,
+            FOREIGN KEY (glider) REFERENCES gear(id)
+
         )`);
     db.run(`CREATE TABLE IF NOT EXISTS gear (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -304,9 +306,10 @@ app.get("/launch_sites", (req, res) => {
   });
 });
 
+// FLIGHTS
 // Get all items
 app.get("/items", (req, res) => {
-  db.all("SELECT * FROM paragliding", [], (err, rows) => {
+  db.all("SELECT * FROM flights", [], (err, rows) => {
     if (err) {
       res.status(400).json({ error: err.message });
       return;
@@ -316,7 +319,7 @@ app.get("/items", (req, res) => {
 });
 
 // Add a new item
-app.post("/items", (req, res) => {
+app.post("/save-flight", (req, res) => {
   const {
     category,
     type,
@@ -330,7 +333,7 @@ app.post("/items", (req, res) => {
     igc_file_path,
   } = req.body;
   db.run(
-    "INSERT INTO paragliding (category, type, date, glider, takeoff_location, landing_location, flight_time, links, comments, igc_file_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO flights (category, type, date, glider, takeoff_location, landing_location, flight_time, links, comments, igc_file_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [
       category,
       type,
@@ -355,36 +358,13 @@ app.post("/items", (req, res) => {
 
 // Delete all items
 app.delete("/items", (req, res) => {
-  db.run("DELETE FROM paragliding", [], function (err) {
+  db.run("DELETE FROM flights", [], function (err) {
     if (err) {
       res.status(400).json({ error: err.message });
       return;
     }
     res.json({ message: "All items deleted" });
   });
-});
-
-// FILE MANAGEMENT
-const uploadDir = path.join(__dirname, "uploads/igc");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Set up storage for Multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/igc"); // Folder to save the uploaded files
-  },
-  filename: (req, file, cb) => {
-    cb(null, file.originalname); // Save the file with its original name
-  },
-});
-
-const upload = multer({ storage: storage });
-
-// Endpoint to handle file upload
-app.post("/uploads/igc", upload.single("igcFile"), (req, res) => {
-  res.send("File uploaded successfully");
 });
 
 // The rest should be sorted later

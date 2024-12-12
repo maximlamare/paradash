@@ -13,134 +13,141 @@
     <button @click="openIGC" class="button-blue">Upload .igc file</button>
     <p v-if="errorMessage" class="text-red-500 mt-2">{{ errorMessage }}</p>
     <h2 class="page-title2 mt-8">Enter flight details</h2>
-    <h3 class="page-title3">Date</h3>
-    <div>
-      <div class="mb-4">
-        <input
-          class="modal-dropdown w-1/4"
-          type="date"
-          id="date"
-          @input="updateFlightField('date', $event)"
-          :value="flight.date"
-        />
-      </div>
-      <h3 class="page-title3">Category</h3>
-      <div class="mb-4">
-        <select
-          class="modal-dropdown w-1/4"
-          id="category"
-          @change="updateFlightField('category', $event)"
-          :value="flight.category"
-        >
-          <option
-            v-for="category in categories"
-            :key="category"
-            :value="category"
-          >
-            {{ category }}
-          </option>
-        </select>
-      </div>
-      <h3 class="page-title3">Type</h3>
-      <div class="mb-4">
-        <select
-          class="modal-dropdown w-1/4"
-          id="category"
-          @change="updateFlightField('type', $event)"
-          :value="flight.type"
-        >
-          <option v-for="type in types" :key="type" :value="type">
-            {{ type }}
-          </option>
-        </select>
-      </div>
-      <h3 class="page-title3">Start location</h3>
-      <div class="mb-4">
-        <input
-          class="modal-dropdown w-1/4"
-          type="text"
-          id="start"
-          @input="updateFlightField('start', $event)"
-          :value="flight.start"
-        />
-      </div>
-      <h3 class="page-title3">Landing location</h3>
-      <div class="mb-4">
-        <input
-          class="modal-dropdown w-1/4"
-          type="text"
-          id="landing"
-          @input="updateFlightField('landing', $event)"
-          :value="flight.landing"
-        />
-      </div>
-      <h3 class="page-title3">Flight duration (hh:mm)</h3>
-      <div class="mb-4">
-        <input
-          class="modal-dropdown w-1/4"
-          type="text"
-          id="duration"
-          @input="updateFlightField('duration', $event)"
-          :value="flight.duration"
-        />
-      </div>
-      <h3 class="page-title3">Glider</h3>
-      <div class="mb-4">
-        <select
-          class="modal-dropdown w-1/4"
-          id="glider"
-          @change="updateFlightField('glider', $event)"
-          :value="flight.glider"
-        >
-          <option
-            v-for="glider in gliders"
-            :key="glider.id"
-            :value="glider.model"
-          >
-            {{ glider.brand + " " + glider.model }}
-          </option>
-        </select>
-      </div>
-      <h3 class="page-title3">Links (Strava, XContest...)</h3>
-      <div class="mb-4">
-        <div
-          v-for="(link, index) in flight.links"
-          :key="index"
-          class="flex items-center mb-2"
-        >
+    <div class="flex flex-wrap">
+      <div class="w-1/2 md:w-1/2 pr-4">
+        <h3 class="page-title3">Date</h3>
+        <div class="mb-4">
           <input
-            class="modal-dropdown w-1/4"
-            type="text"
-            :id="'link-' + index"
-            @input="updateFlightField('links', $event, index)"
-            :value="link"
+            class="modal-dropdown w-full"
+            type="date"
+            id="date"
+            @input="updateFlightField('date', $event)"
+            :value="flight.date"
           />
-          <button
-            v-if="index === flight.links.length - 1"
-            @click="addLink"
-            class="button-blue ml-2"
-          >
-            +
-          </button>
-          <button
-            v-if="index !== 0"
-            @click="removeLink(index)"
-            class="button-delete ml-2"
-          >
-            -
-          </button>
+        </div>
+        <h3 class="page-title3">Start location</h3>
+        <div class="mb-4">
+          <input
+            class="modal-dropdown w-full"
+            type="text"
+            id="start"
+            @input="updateFlightField('takeoff_location', $event)"
+            :value="flight.takeoff_location"
+          />
+        </div>
+        <h3 class="page-title3">Landing location</h3>
+        <div class="mb-4">
+          <input
+            class="modal-dropdown w-full"
+            type="text"
+            id="landing"
+            @input="updateFlightField('landing_location', $event)"
+            :value="flight.landing_location"
+          />
+        </div>
+        <h3 class="page-title3">Flight duration (hh:mm)</h3>
+        <div class="mb-4">
+          <input
+            class="modal-dropdown w-full"
+            type="text"
+            id="duration"
+            @input="updateFlightField('flight_time', $event)"
+            :value="flight.flight_time"
+          />
+        </div>
+        <h3 class="page-title3">Comments</h3>
+        <div class="mb-4">
+          <textarea
+            class="modal-dropdown w-full"
+            id="comments"
+            @input="updateFlightField('comments', $event)"
+            :value="flight.comments"
+            rows="4"
+          ></textarea>
         </div>
       </div>
-      <h3 class="page-title3">Comments</h3>
-      <div class="mb-4">
-        <textarea
-          class="modal-dropdown w-1/4"
-          id="comments"
-          @input="updateFlightField('comments', $event)"
-          :value="flight.comments"
-          rows="4"
-        ></textarea>
+      <div class="w-1/2 md:w-1/2 pl-4">
+        <h3 class="page-title3">Category</h3>
+        <div class="mb-4">
+          <select
+            class="modal-dropdown w-full"
+            id="category"
+            @change="updateFlightField('category', $event)"
+            :value="flight.category"
+          >
+            <option
+              v-for="category in categories"
+              :key="category"
+              :value="category"
+            >
+              {{ category }}
+            </option>
+          </select>
+        </div>
+        <h3 class="page-title3">Type</h3>
+        <div class="mb-4">
+          <select
+            class="modal-dropdown w-full"
+            id="type"
+            @change="updateFlightField('type', $event)"
+            :value="flight.type"
+          >
+            <option v-for="type in types" :key="type" :value="type">
+              {{ type }}
+            </option>
+          </select>
+        </div>
+        <h3 class="page-title3">Glider</h3>
+        <div class="mb-4">
+          <select
+            class="modal-dropdown w-full"
+            id="glider"
+            @change="updateFlightField('glider', $event)"
+            :value="flight.glider_id"
+          >
+            <option
+              v-for="glider in gliders"
+              :key="glider.id"
+              :value="glider.id"
+            >
+              {{ glider.brand + " " + glider.model }}
+            </option>
+          </select>
+        </div>
+        <h3 class="page-title3">Links (Strava, XContest...)</h3>
+        <div class="mb-4">
+          <div
+            v-for="(link, index) in flight.links"
+            :key="index"
+            class="flex items-center mb-2"
+          >
+            <input
+              class="modal-dropdown w-full"
+              type="text"
+              :id="'link-' + index"
+              @input="updateFlightField('links', $event, index)"
+              :value="link"
+            />
+            <button
+              v-if="index === flight.links.length - 1"
+              @click="addLink"
+              class="button-blue ml-2"
+            >
+              +
+            </button>
+            <button
+              v-if="index !== 0"
+              @click="removeLink(index)"
+              class="button-delete ml-2"
+            >
+              -
+            </button>
+          </div>
+        </div>
       </div>
+    </div>
+    <div class="flex justify-center mt-8">
+      <button @click="saveFlight" class="button-blue">Save flight</button>
     </div>
   </div>
 </template>
@@ -159,14 +166,14 @@ export default {
         duration: "",
         glider: "",
         links: [""],
+        comments: "",
       },
       categories: [],
       types: [],
       gliders: [],
-      errorMessage: "",
+      errorMessage: "", // Add this line
     };
   },
-  computed: {},
   methods: {
     openIGC() {
       this.$refs.igcFileInput.click();
@@ -181,12 +188,18 @@ export default {
           method: "POST",
           body: formData,
         })
-          .then((response) => response.text())
-          .then(() => {
-            this.processIGCFile(file);
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.filePath) {
+              this.flight.igc_file_path = data.filePath; // Save the file path to this.flight
+              this.processIGCFile(file);
+            } else {
+              this.errorMessage = "Error uploading file.";
+            }
           })
           .catch((error) => {
             console.error("Error uploading file:", error);
+            this.errorMessage = "Error uploading file.";
           });
       }
     },
@@ -194,22 +207,21 @@ export default {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const igcContent = e.target.result;
-        const response = await axios
-          .get("http://localhost:3000/launch_sites")
-          .catch((error) => {
-            console.error("Error fetching launch sites:", error);
-          });
-        this.sites = response.data; // Assuming response.data contains the array of objects
         try {
+          const response = await axios.get(
+            "http://localhost:3000/launch_sites"
+          );
+          this.sites = response.data; // Assuming response.data contains the array of objects
+
           const result = await processIGCContent(igcContent, this.sites);
           this.flight.date = result.flightDate;
-          this.flight.start = result.flightTakeoff;
-          this.flight.landing = result.flightLanding;
-          this.flight.duration = result.flightDuration;
-          this.errorMessage = "";
+          this.flight.takeoff_location = result.flightTakeoff;
+          this.flight.landing_location = result.flightLanding;
+          this.flight.flight_time = result.flightDuration;
+          this.errorMessage = ""; // Clear error message if processing is successful
         } catch (error) {
           console.error("Error processing IGC file:", error);
-          this.errorMessage = "Error processing IGC file: enter data manually.";
+          this.errorMessage = "Error processing IGC file.";
         }
       };
       reader.readAsText(file);
@@ -256,10 +268,21 @@ export default {
     removeLink(index) {
       this.flight.links.splice(index, 1);
     },
+    saveFlight() {
+      console.log("Saving flight:", this.flight);
+      axios
+        .post("http://localhost:3000/save-flight", this.flight)
+        .then((response) => {
+          console.log("Flight saved successfully:", response.data);
+        })
+        .catch((error) => {
+          console.error("Error saving flight:", error);
+        });
+    },
   },
   created() {
     this.fetchSettings();
-    this.fetchGliders(); // Add this line
+    this.fetchGliders();
   },
 };
 </script>
