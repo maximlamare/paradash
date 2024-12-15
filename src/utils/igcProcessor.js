@@ -37,14 +37,17 @@ export async function processIGCContent(content, launchsites) {
   );
   const landingPlace = await getOSMPlaceName(endLatitude, endLongitude);
 
-  // Convert end location to a string with city and country
-  const endLocation = `${landingPlace.city}, ${landingPlace.country}`;
+  // Break the start into city and country
+  console.log(startLocation);
+  const startLocationArray = startLocation.split(", ");
 
   return {
     flightDate: flightData.date,
     flightStartTime: startTime,
     flightDuration: flightDurationHHmm,
-    flightTakeoff: startLocation,
-    flightLanding: endLocation,
+    flightTakeoff: startLocationArray[0],
+    flightTakeoffCountryCode: startLocationArray[1],
+    flightLanding: landingPlace.city,
+    flightLandingCountryCode: landingPlace.countryCode,
   };
 }

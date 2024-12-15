@@ -139,10 +139,10 @@ async function getOSMPlaceName(lat, lon) {
     const parser = new xml2js.Parser({ ignoreAttrs: true });
     const result = await parser.parseStringPromise(response.data);
     const city = result.reversegeocode.addressparts[0].city[0];
-    const country =
+    const countryCode =
       result.reversegeocode.addressparts[0].country_code[0].toUpperCase();
 
-    return { city, country };
+    return { city, countryCode };
   } catch (error) {
     console.error("Error fetching paragliding data:", error);
     throw error;

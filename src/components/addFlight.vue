@@ -30,9 +30,9 @@
           <input
             class="modal-dropdown w-full"
             type="time"
-            id="flight_start"
-            @input="updateFlightField('flight_start', $event)"
-            :value="flight.flight_start"
+            id="flightStart"
+            @input="updateFlightField('flightStart', $event)"
+            :value="flight.flightStart"
           />
         </div>
         <h3 class="page-title3">Start location</h3>
@@ -41,8 +41,13 @@
             class="modal-dropdown w-full"
             type="text"
             id="start"
-            @input="updateFlightField('takeoff_location', $event)"
-            :value="flight.takeoff_location"
+            @input="updateFlightField('takeoffLocation', $event)"
+            :value="
+              displayfilled(
+                this.flight.takeoffLocation,
+                this.flight.takeoffCountryCode
+              )
+            "
           />
         </div>
         <h3 class="page-title3">Landing location</h3>
@@ -51,8 +56,13 @@
             class="modal-dropdown w-full"
             type="text"
             id="landing"
-            @input="updateFlightField('landing_location', $event)"
-            :value="flight.landing_location"
+            @input="updateFlightField('landingLocation', $event)"
+            :value="
+              displayfilled(
+                this.flight.landingLocation,
+                this.flight.landingCountryCode
+              )
+            "
           />
         </div>
         <h3 class="page-title3">Flight duration (hh:mm)</h3>
@@ -61,8 +71,8 @@
             class="modal-dropdown w-full"
             type="time"
             id="duration"
-            @input="updateFlightField('flight_time', $event)"
-            :value="flight.flight_time"
+            @input="updateFlightField('flightTime', $event)"
+            :value="flight.flightTime"
           />
         </div>
       </div>
@@ -172,16 +182,18 @@ export default {
     return {
       flight: {
         date: "",
-        flight_start: "",
-        takeoff_location: "",
-        landing_location: "",
-        flight_time: "",
+        flightStart: "",
+        takeoffLocation: "",
+        takeoffCountryCode: "",
+        landingLocation: "",
+        landingCountryCode: "",
+        flightTime: "",
         category: "",
         type: "",
         glider_id: "",
         links: [""],
         comments: "",
-        igc_file_path: "",
+        igcFilePath: "",
       },
       categories: [],
       types: [],
@@ -206,7 +218,7 @@ export default {
           .then((response) => response.json())
           .then((data) => {
             if (data.filePath) {
-              this.flight.igc_file_path = data.filePath; // Save the file path to this.flight
+              this.flight.igcFilePath = data.filePath; // Save the file path to this.flight
               this.processIGCFile(file);
             } else {
               this.errorMessage = "Error uploading file.";
@@ -230,10 +242,13 @@ export default {
 
           const result = await processIGCContent(igcContent, this.sites);
           this.flight.date = result.flightDate;
-          this.flight.flight_start = result.flightStartTime;
-          this.flight.takeoff_location = result.flightTakeoff;
-          this.flight.landing_location = result.flightLanding;
-          this.flight.flight_time = result.flightDuration;
+          this.flight.flightStart = result.flightStartTime;
+          this.flight.takeoffLocation = result.flightTakeoff;
+          this.flight.takeoffCountryCode = result.flightTakeoffCountryCode;
+          this.flight.landingLocation = result.flightLanding;
+          this.flight.landingCountryCode = result.flightLandingCountryCode;
+
+          this.flight.flightTime = result.flightDuration;
           this.errorMessage = ""; // Clear error message if processing is successful
         } catch (error) {
           console.error("Error processing IGC file:", error);
@@ -290,6 +305,13 @@ export default {
         .catch((error) => {
           console.error("Error saving flight:", error);
         });
+    },
+    displayfilled(place, countryCode) {
+      if (place || countryCode) {
+        return `${place}, ${countryCode}`;
+      } else {
+        return "";
+      }
     },
   },
   created() {
