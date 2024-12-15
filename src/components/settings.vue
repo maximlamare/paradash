@@ -1,7 +1,7 @@
 <template>
   <div class="page-bg-grey">
     <div class="flex justify-between items-center mb-8">
-      <h1 class="page-title1">Gear Overview</h1>
+      <h1 class="page-title1">Settings</h1>
     </div>
     <div class="flex justify-end mb-8">
       <button @click="saveSettings" class="button-blue">Save settings</button>
