@@ -229,7 +229,6 @@ export default {
           this.sites = response.data; // Assuming response.data contains the array of objects
 
           const result = await processIGCContent(igcContent, this.sites);
-          console.log("IGC file processed:", result);
           this.flight.date = result.flightDate;
           this.flight.flight_start = result.flightStartTime;
           this.flight.takeoff_location = result.flightTakeoff;
@@ -286,12 +285,8 @@ export default {
       this.flight.links.splice(index, 1);
     },
     saveFlight() {
-      console.log("Saving flight:", this.flight);
       axios
         .post("http://localhost:3000/save-flight", this.flight)
-        .then((response) => {
-          console.log("Flight saved successfully:", response.data);
-        })
         .catch((error) => {
           console.error("Error saving flight:", error);
         });

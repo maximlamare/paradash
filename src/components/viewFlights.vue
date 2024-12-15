@@ -68,7 +68,6 @@ export default {
             const dateTimeB = new Date(`${b.date}T${b.flight_start}`);
             return dateTimeB - dateTimeA;
           });
-          console.log("Fetched flights:", this.flights);
         })
         .catch((error) => {
           console.error("Error fetching flights:", error);
