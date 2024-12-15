@@ -1,0 +1,31 @@
+.flight-entry {
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid #0284c7;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+.flight-index {
+  display: flex;
+  align-items: center;
+  justify-content: left;
+  font-size: 2em;
+  font-weight: bold;
+  height: 100%;
+  margin-right: 18px;
+}
+.flight-details {
+  display: flex;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+}
+.flight-detail {
+  flex: 1 1 20%; /* Adjust the basis percentage as needed */
+
+  padding: 4px;
+}
+.flight-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

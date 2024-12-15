@@ -1,78 +1,87 @@
 <template>
-  <div>
-    <h1>Paragliding Records</h1>
-    <table>
-      <thead>
-        <tr>
-          <th>Category</th>
-          <th>Type</th>
-          <th>Date</th>
-          <th>Glider</th>
-          <th>Takeoff Location</th>
-          <th>Landing Location</th>
-          <th>Flight Time</th>
-          <th>Links</th>
-          <th>Comments</th>
-          <th>IGC File Path</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="item in items" :key="item.id">
-          <td>{{ item.category }}</td>
-          <td>{{ item.type }}</td>
-          <td>{{ item.date }}</td>
-          <td>{{ item.glider }}</td>
-          <td>{{ item.takeoff_location }}</td>
-          <td>{{ item.landing_location }}</td>
-          <td>{{ item.flight_time }}</td>
-          <td>{{ item.links }}</td>
-          <td>{{ item.comments }}</td>
-          <td>{{ item.igc_file_path }}</td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="page-bg-grey">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="page-title1">Flight log</h1>
+    </div>
+    <div class="flex justify-end mb-8"></div>
+    <div v-if="flights.length">
+      <div
+        v-for="(flight, index) in flights"
+        :key="flight.id"
+        class="flight-entry"
+      >
+        <div class="flight-details">
+          <div class="flight-index">{{ flights.length - index }}</div>
+
+          <div class="flight-detail">
+            <p>{{ flight.date }}</p>
+            <p>
+              <i>{{ displayValue(flight.flight_start) }}</i>
+            </p>
+          </div>
+          <div class="flight-detail">
+            <p><i>Duration:</i></p>
+            <p>{{ displayValue(flight.flight_time) }}</p>
+          </div>
+          <div class="flight-detail">
+            <p><i>Takeoff:</i></p>
+            <p>{{ displayValue(flight.takeoff_location) }}</p>
+          </div>
+          <div class="flight-detail">
+            <p><i>Landing:</i></p>
+            <p>{{ displayValue(flight.landing_location) }}</p>
+          </div>
+          <div class="flight-detail">
+            <button @click="openFlight" class="button-blue flight-button">
+              Details
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div v-else>
+      <p>No flights available.</p>
+    </div>
   </div>
 </template>
-
 <script>
-import axios from 'axios';
+import axios from "axios";
 
 export default {
   data() {
     return {
-      items: []
+      flights: [],
     };
   },
   created() {
-    this.fetchItems();
+    this.fetchAllFlights();
   },
   methods: {
-    fetchItems() {
-      axios.get('http://localhost:3000/items')
-        .then(response => {
-          this.items = response.data.data;
+    fetchAllFlights() {
+      axios
+        .get("http://localhost:3000/items")
+        .then((response) => {
+          this.flights = response.data.data;
+          // Sort flights by date in descending order
+          this.flights.sort((a, b) => {
+            const dateTimeA = new Date(`${a.date}T${a.flight_start}`);
+            const dateTimeB = new Date(`${b.date}T${b.flight_start}`);
+            return dateTimeB - dateTimeA;
+          });
+          console.log("Fetched flights:", this.flights);
         })
-        .catch(error => {
-          console.error('Error fetching items:', error);
+        .catch((error) => {
+          console.error("Error fetching flights:", error);
         });
-    }
-  }
+    },
+    displayValue(value) {
+      return value ? value : "?";
+    },
+  },
 };
 </script>
 
 <style scoped>
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  border: 1px solid #ddd;
-  padding: 8px;
-}
-
-th {
-  background-color: #f2f2f2;
-  text-align: left;
-}
+@import "@/assets/flights.css";
+@import "@/assets/buttons.css";
 </style>
