@@ -5,6 +5,9 @@ export async function processIGCContent(content, launchsites) {
   // Parse the IGC data
   const flightData = igcParser.parse(content);
 
+  // Get start time
+  const startTime = flightData.fixes[0].time.slice(0, 5);
+
   // Compute flight duration
   const startDateTime = new Date(
     flightData.date + "T" + flightData.fixes[0].time
@@ -39,6 +42,7 @@ export async function processIGCContent(content, launchsites) {
 
   return {
     flightDate: flightData.date,
+    flightStartTime: startTime,
     flightDuration: flightDurationHHmm,
     flightTakeoff: startLocation,
     flightLanding: endLocation,
