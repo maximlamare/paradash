@@ -25,6 +25,16 @@
             :value="flight.date"
           />
         </div>
+        <h3 class="page-title3">Start time (hh:mm)</h3>
+        <div class="mb-4">
+          <input
+            class="modal-dropdown w-full"
+            type="time"
+            id="flight_start"
+            @input="updateFlightField('flight_start', $event)"
+            :value="flight.flight_start"
+          />
+        </div>
         <h3 class="page-title3">Start location</h3>
         <div class="mb-4">
           <input
@@ -49,21 +59,11 @@
         <div class="mb-4">
           <input
             class="modal-dropdown w-full"
-            type="text"
+            type="time"
             id="duration"
             @input="updateFlightField('flight_time', $event)"
             :value="flight.flight_time"
           />
-        </div>
-        <h3 class="page-title3">Comments</h3>
-        <div class="mb-4">
-          <textarea
-            class="modal-dropdown w-full"
-            id="comments"
-            @input="updateFlightField('comments', $event)"
-            :value="flight.comments"
-            rows="4"
-          ></textarea>
         </div>
       </div>
       <div class="w-1/2 md:w-1/2 pl-4">
@@ -144,8 +144,19 @@
             </button>
           </div>
         </div>
+        <h3 class="page-title3">Comments</h3>
+        <div class="mb-4">
+          <textarea
+            class="modal-dropdown w-full"
+            id="comments"
+            @input="updateFlightField('comments', $event)"
+            :value="flight.comments"
+            rows="4"
+          ></textarea>
+        </div>
       </div>
     </div>
+
     <div class="flex justify-center mt-8">
       <button @click="saveFlight" class="button-blue">Save flight</button>
     </div>
@@ -161,12 +172,16 @@ export default {
     return {
       flight: {
         date: "",
-        start: "",
-        landing: "",
-        duration: "",
-        glider: "",
+        flight_start: "",
+        takeoff_location: "",
+        landing_location: "",
+        flight_time: "",
+        category: "",
+        type: "",
+        glider_id: "",
         links: [""],
         comments: "",
+        igc_file_path: "",
       },
       categories: [],
       types: [],
@@ -214,7 +229,9 @@ export default {
           this.sites = response.data; // Assuming response.data contains the array of objects
 
           const result = await processIGCContent(igcContent, this.sites);
+          console.log("IGC file processed:", result);
           this.flight.date = result.flightDate;
+          this.flight.flight_start = result.flightStartTime;
           this.flight.takeoff_location = result.flightTakeoff;
           this.flight.landing_location = result.flightLanding;
           this.flight.flight_time = result.flightDuration;
