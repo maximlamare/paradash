@@ -16,20 +16,20 @@
           <div class="flight-detail">
             <p>{{ flight.date }}</p>
             <p>
-              <i>{{ displayValue(flight.flight_start) }}</i>
+              <i>{{ displayValue(flight.flightStart) }}</i>
             </p>
           </div>
           <div class="flight-detail">
             <p><i>Duration:</i></p>
-            <p>{{ displayValue(flight.flight_time) }}</p>
+            <p>{{ displayValue(flight.flightTime) }}</p>
           </div>
           <div class="flight-detail">
             <p><i>Takeoff:</i></p>
-            <p>{{ displayValue(flight.takeoff_location) }}</p>
+            <p>{{ displayValue(flight.takeoffLocation) }}</p>
           </div>
           <div class="flight-detail">
             <p><i>Landing:</i></p>
-            <p>{{ displayValue(flight.landing_location) }}</p>
+            <p>{{ displayValue(flight.landingLocation) }}</p>
           </div>
           <div class="flight-detail">
             <button @click="openFlight" class="button-blue flight-button">

@@ -42,12 +42,7 @@
             type="text"
             id="start"
             @input="updateFlightField('takeoffLocation', $event)"
-            :value="
-              displayfilled(
-                this.flight.takeoffLocation,
-                this.flight.takeoffCountryCode
-              )
-            "
+            :value="this.flight.takeoffLocation"
           />
         </div>
         <h3 class="page-title3">Landing location</h3>
@@ -57,12 +52,7 @@
             type="text"
             id="landing"
             @input="updateFlightField('landingLocation', $event)"
-            :value="
-              displayfilled(
-                this.flight.landingLocation,
-                this.flight.landingCountryCode
-              )
-            "
+            :value="this.flight.landingLocation"
           />
         </div>
         <h3 class="page-title3">Flight duration (hh:mm)</h3>
@@ -168,7 +158,13 @@
     </div>
 
     <div class="flex justify-center mt-8">
-      <button @click="saveFlight" class="button-blue">Save flight</button>
+      <div v-if="uploadSuccess">
+        <button class="button-green">Flight saved</button>
+      </div>
+      <div v-else>
+        <p v-if="errorMessage" class="text-red-500">{{ errorMessage }}</p>
+        <button @click="saveFlight" class="button-blue">Save flight</button>
+      </div>
     </div>
   </div>
 </template>
@@ -198,7 +194,8 @@ export default {
       categories: [],
       types: [],
       gliders: [],
-      errorMessage: "", // Add this line
+      errorMessage: "",
+      uploadSuccess: false, // State variable to track upload status
     };
   },
   methods: {
@@ -258,6 +255,7 @@ export default {
       reader.readAsText(file);
     },
     updateFlightField(field, event, index = null) {
+      this.uploadSuccess = false;
       if (field === "links" && index !== null) {
         this.flight.links[index] = event.target.value;
       } else {
@@ -302,16 +300,13 @@ export default {
     saveFlight() {
       axios
         .post("http://localhost:3000/save-flight", this.flight)
+        .then(() => {
+          this.uploadSuccess = true;
+        })
         .catch((error) => {
+          this.uploadSuccess = false;
           console.error("Error saving flight:", error);
         });
-    },
-    displayfilled(place, countryCode) {
-      if (place || countryCode) {
-        return `${place}, ${countryCode}`;
-      } else {
-        return "";
-      }
     },
   },
   created() {
