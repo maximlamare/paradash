@@ -38,7 +38,6 @@ export async function processIGCContent(content, launchsites) {
   const landingPlace = await getOSMPlaceName(endLatitude, endLongitude);
 
   // Break the start into city and country
-  console.log(startLocation);
   const startLocationArray = startLocation.split(", ");
 
   return {
