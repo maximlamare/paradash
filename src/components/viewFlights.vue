@@ -3,7 +3,21 @@
     <div class="flex justify-between items-center mb-8">
       <h1 class="page-title1">Flight log</h1>
     </div>
+    <div class="categories-list">
+      <button
+        v-for="category in categories"
+        :key="category"
+        @click="toggleCategory(category)"
+        :class="[
+          'category-button',
+          { active: selectedCategories.includes(category) },
+        ]"
+      >
+        {{ category }}
+      </button>
+    </div>
     <div class="flex justify-end mb-8"></div>
+
     <div v-if="flights.length">
       <div
         v-for="(flight, index) in flights"
@@ -51,10 +65,14 @@ export default {
   data() {
     return {
       flights: [],
+      categories: [],
+      selectedCategories: [],
+      filteredFlights: [],
     };
   },
   created() {
     this.fetchAllFlights();
+    this.fetchCategories();
   },
   methods: {
     fetchAllFlights() {
@@ -76,6 +94,25 @@ export default {
     displayValue(value) {
       return value ? value : "?";
     },
+    fetchCategories() {
+      axios
+        .get("http://localhost:3002/get-settings")
+        .then((response) => {
+          this.categories = response.data.categories;
+        })
+        .catch((error) => {
+          console.error("Error fetching settings:", error);
+        });
+    },
+    toggleCategory(category) {
+      const index = this.selectedCategories.indexOf(category);
+      if (index > -1) {
+        this.selectedCategories.splice(index, 1);
+      } else {
+        this.selectedCategories.push(category);
+      }
+      this.filterFlights();
+    },
   },
 };
 </script>
@@ -83,4 +120,27 @@ export default {
 <style scoped>
 @import "@/assets/flights.css";
 @import "@/assets/buttons.css";
+
+.categories-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.category-button {
+  background-color: white;
+  border: 1px solid #007bff;
+  border-radius: 12px;
+  color: #007bff;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition:
+    background-color 0.3s,
+    color 0.3s;
+}
+
+.category-button.active {
+  background-color: #007bff;
+  color: white;
+}
 </style>
