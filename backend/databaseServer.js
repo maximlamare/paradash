@@ -1,11 +1,14 @@
 const express = require("express");
 const path = require("path");
+const multer = require("multer");
 const sqlite3 = require("sqlite3").verbose();
 const bodyParser = require("body-parser");
+const fs = require("fs");
 const cors = require("cors");
 
 const app = express();
 const port = 3000;
+const upload = multer({ dest: "uploads/db" });
 
 app.use(bodyParser.json());
 app.use(cors());
@@ -13,7 +16,7 @@ app.use(cors());
 const dbPath = path.join(__dirname, "database.db");
 const dbLaunchSitesPath = path.join(__dirname, "launchSites.db");
 const dbCountriesPath = path.join(__dirname, "countryCodes.db");
-const db = new sqlite3.Database(dbPath, (err) => {
+let db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error("Error opening database", err.message);
   } else {
@@ -430,4 +433,70 @@ app.get("/fetchCountryCodes", (req, res) => {
 // The rest should be sorted later
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
+});
+
+// Check a input database from settings
+app.post("/upload-db", upload.single("dbFile"), (req, res) => {
+  const tempdbPath = path.join(__dirname, req.file.path);
+  const tempDb = new sqlite3.Database(dbPath);
+
+  tempDb.serialize(() => {
+    tempDb.all(
+      "SELECT name FROM sqlite_master WHERE type='table'",
+      (err, tables) => {
+        if (err) {
+          console.error("Error fetching tables:", err);
+          res.status(500).send("Error fetching tables");
+        } else {
+          const tableNames = tables.map((table) => table.name);
+          const requiredTables = [
+            "gear",
+            "flights",
+            "maintenance",
+            "countryCodes",
+            "launchSites",
+          ];
+          const missingTables = requiredTables.filter(
+            (table) => !tableNames.includes(table)
+          );
+
+          if (missingTables.length > 0) {
+            res.status(400).json({ error: "Missing tables", missingTables });
+          } else {
+            // Close the current database connection
+            db.close((closeErr) => {
+              if (closeErr) {
+                console.error("Error closing the database:", closeErr);
+                res.status(500).send("Error closing the database");
+              } else {
+                // Replace the current database with the uploaded database
+                fs.copyFile(tempdbPath, dbPath, (copyErr) => {
+                  if (copyErr) {
+                    console.error("Error replacing the database:", copyErr);
+                    res.status(500).send("Error replacing the database");
+                  } else {
+                    // Reopen the database connection
+                    db = new sqlite3.Database(dbPath, (openErr) => {
+                      if (openErr) {
+                        console.error("Error opening the database:", openErr);
+                        res.status(500).send("Error opening the database");
+                      } else {
+                        res.json({
+                          message:
+                            "All required tables are present. Database replaced and reloaded successfully.",
+                          tables: tableNames,
+                        });
+                      }
+                    });
+                  }
+                  fs.unlinkSync(tempdbPath); // Clean up the uploaded file
+                });
+              }
+            });
+          }
+        }
+        tempDb.close();
+      }
+    );
+  });
 });

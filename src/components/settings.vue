@@ -7,7 +7,7 @@
       <button @click="saveSettings" class="button-blue">Save settings</button>
     </div>
     <div class="mt-12 mb-12">
-      <label for="categories" class="page-title2">Categories</label>
+      <label class="page-title2">Categories</label>
 
       <div
         v-for="(category, index) in categories"
@@ -30,13 +30,14 @@
       </div>
     </div>
     <div class="mt-12 mb-12">
-      <label for="types" class="page-title2">Types</label>
+      <label class="page-title2">Types</label>
       <div
         v-for="(type, index) in types"
         :key="index"
         class="flex items-center mt-4 mb-2"
       >
         <input
+          name="type"
           type="text"
           v-model="types[index]"
           class="modal-dropdown w-1/4"
@@ -50,12 +51,11 @@
       </div>
     </div>
     <div class="mt-12 mb-12">
-      <label for="warningDuration" class="page-title2"
-        >Glider Warning Duration (months)</label
-      >
+      <label class="page-title2">Glider Warning Duration (months)</label>
       <div>Set the reminder time for your glider check</div>
       <div>
         <input
+          name="gliderWarningDuration"
           type="number"
           v-model="gliderWarningDuration"
           class="modal-dropdown w-1/4 mt-2"
@@ -63,12 +63,11 @@
       </div>
     </div>
     <div class="mt-12 mb-12">
-      <label for="warningDuration" class="page-title2"
-        >Rescue Warning Duration (months)</label
-      >
+      <label class="page-title2">Rescue Warning Duration (months)</label>
       <div>Set the reminder time for your rescue check</div>
       <div>
         <input
+          name="rescueWarningDuration"
           type="number"
           v-model="rescueWarningDuration"
           class="modal-dropdown w-1/4 mt-2"
@@ -76,9 +75,13 @@
       </div>
     </div>
     <div class="mt-12 mb-12">
-      <label for="tables" class="page-title2">Export database</label>
+      <label class="page-title2">Export database</label>
       <div>
-        <select v-model="selectedTable" class="modal-dropdown w-1/4 mt-2">
+        <select
+          name="exportDb"
+          v-model="selectedTable"
+          class="modal-dropdown w-1/4 mt-2"
+        >
           <option v-for="table in tables" :key="table" :value="table">
             {{ table }}
           </option>
@@ -91,6 +94,15 @@
         <button @click="exportDb" class="button-blue mt-2">
           Export entire database as .db
         </button>
+      </div>
+    </div>
+    <div class="mt-12 mb-12">
+      <label class="page-title2">Import database</label>
+      <div class="mt-4">
+        <button @click="uploadDb" class="button-delete">
+          Upload .db file (danger)
+        </button>
+        <p v-if="errorMessage" class="text-red-500 mt-2">{{ errorMessage }}</p>
       </div>
     </div>
   </div>
@@ -108,7 +120,8 @@ export default {
       gliderWarningDuration: 12,
       rescueWarningDuration: 12,
       tables: [],
-      selectedTable: "", // Add this line
+      selectedTable: "",
+      errorMessage: "",
     };
   },
   computed: {},
@@ -210,10 +223,45 @@ export default {
           console.error("Error exporting table to CSV:", error);
         });
     },
+    uploadDb() {
+      if (
+        confirm(
+          "Are you sure you want to upload a new database? Your current data will be lost."
+        )
+      ) {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".db";
+        input.onchange = (event) => {
+          const file = event.target.files[0];
+          if (file) {
+            const formData = new FormData();
+            formData.append("dbFile", file);
+
+            axios
+              .post("http://localhost:3000/upload-db", formData, {
+                headers: {
+                  "Content-Type": "multipart/form-data",
+                },
+              })
+              .then(() => {
+                this.errorMessage = ""; // Clear error message on success
+              })
+              .catch((error) => {
+                console.error("Error uploading database:", error);
+                this.errorMessage =
+                  "Error uploading database: " + error.message; // Set error message
+              });
+          }
+        };
+        input.click();
+      }
+    },
   },
 };
 </script>
 
 <style scoped>
 @import "@/assets/pages.css";
+@import "@/assets/buttons.css";
 </style>
