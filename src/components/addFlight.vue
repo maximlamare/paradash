@@ -36,29 +36,65 @@
           />
         </div>
         <h3 class="page-title3">Start location</h3>
-        <div class="mb-4">
+        <div class="mb-4 flex gap-4">
+          <label for="start" class="w-1/2 italic">Location</label>
+          <label for="startCountry" class="w-1/2 italic">Country</label>
+        </div>
+        <div class="mb-4 flex gap-4">
           <input
-            class="modal-dropdown w-full"
+            class="modal-dropdown w-1/2"
             type="text"
             id="start"
             @input="updateFlightField('takeoffLocation', $event)"
             :value="this.flight.takeoffLocation"
           />
+          <select
+            class="modal-dropdown w-1/2"
+            id="startCountry"
+            @input="updateFlightField('takeoffCountryCode', $event)"
+            :value="this.flight.takeoffCountryCode"
+          >
+            <option
+              v-for="country in countryCodes"
+              :key="country.code"
+              :value="country.code"
+            >
+              {{ country.code }} ({{ country.country }})
+            </option>
+          </select>
         </div>
         <h3 class="page-title3">Landing location</h3>
-        <div class="mb-4">
+        <div class="mb-4 flex gap-4">
+          <label for="landing" class="w-1/2 italic">Location</label>
+          <label for="landingCountry" class="w-1/2 italic">Country</label>
+        </div>
+        <div class="mb-4 flex gap-4">
           <input
-            class="modal-dropdown w-full"
+            class="modal-dropdown w-1/2"
             type="text"
             id="landing"
             @input="updateFlightField('landingLocation', $event)"
             :value="this.flight.landingLocation"
           />
+          <select
+            class="modal-dropdown w-1/2"
+            id="landingCountry"
+            @input="updateFlightField('landingCountryCode', $event)"
+            :value="this.flight.landingCountryCode"
+          >
+            <option
+              v-for="country in countryCodes"
+              :key="country.code"
+              :value="country.code"
+            >
+              {{ country.code }} ({{ country.country }})
+            </option>
+          </select>
         </div>
         <h3 class="page-title3">Flight duration (hh:mm)</h3>
         <div class="mb-4">
           <input
-            class="modal-dropdown w-full"
+            class="modal-dropdown w-1/4"
             type="time"
             id="duration"
             @input="updateFlightField('flightTime', $event)"
@@ -194,6 +230,7 @@ export default {
       categories: [],
       types: [],
       gliders: [],
+      countryCodes: [],
       errorMessage: "",
       uploadSuccess: false, // State variable to track upload status
     };
@@ -245,6 +282,15 @@ export default {
           this.flight.landingLocation = result.flightLanding;
           this.flight.landingCountryCode = result.flightLandingCountryCode;
 
+          // Automatically select the dropdown options based on the detected country codes
+          this.$nextTick(() => {
+            this.updateFlightField("takeoffCountryCode", {
+              target: { value: result.flightTakeoffCountryCode },
+            });
+            this.updateFlightField("landingCountryCode", {
+              target: { value: result.flightLandingCountryCode },
+            });
+          });
           this.flight.flightTime = result.flightDuration;
           this.errorMessage = ""; // Clear error message if processing is successful
         } catch (error) {
@@ -291,6 +337,42 @@ export default {
           console.error("Error fetching gliders:", error);
         });
     },
+    fetchCountryCodes() {
+      axios.get("http://localhost:3000/items").then((response) => {
+        const takeoffCountryCodes = response.data.data.map(
+          (item) => item.takeoffCountryCode
+        );
+        const landingCountryCodes = response.data.data.map(
+          (item) => item.landingCountryCode
+        );
+        const uniqueCountries = new Set([
+          ...takeoffCountryCodes,
+          ...landingCountryCodes,
+        ]);
+        const usedCountryCodes = Array.from(uniqueCountries).sort();
+        axios
+          .get("http://localhost:3000/fetchCountryCodes")
+          .then((response) => {
+            const filteredCountryCodes = response.data.data.filter((item) =>
+              usedCountryCodes.includes(item.Code)
+            );
+            this.countryCodes = filteredCountryCodes.map((item) => ({
+              country: item.Name,
+              code: item.Code,
+            }));
+            const newCountryCodes = response.data.data.filter(
+              (item) =>
+                !this.countryCodes.some((code) => code.code === item.Code)
+            );
+            this.countryCodes.push(
+              ...newCountryCodes.map((item) => ({
+                country: item.Name,
+                code: item.Code,
+              }))
+            );
+          });
+      });
+    },
     addLink() {
       this.flight.links.push("");
     },
@@ -312,6 +394,7 @@ export default {
   created() {
     this.fetchSettings();
     this.fetchGliders();
+    this.fetchCountryCodes();
   },
 };
 </script>

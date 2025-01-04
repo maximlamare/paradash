@@ -11,50 +11,88 @@ app.use(bodyParser.json());
 app.use(cors());
 
 const dbPath = path.join(__dirname, "database.db");
-const dbLaunchSitesPath = path.join(__dirname, "launch_sites.db");
+const dbLaunchSitesPath = path.join(__dirname, "launchSites.db");
+const dbCountriesPath = path.join(__dirname, "countryCodes.db");
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error("Error opening database", err.message);
   } else {
-    console.log("Connected to the SQLite database.");
     // Check if the launch_sites table exists
     db.get(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name='launch_sites'",
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='launchSites'",
       (err, row) => {
         if (err) {
-          console.error("Error checking for launch_sites table", err.message);
+          console.error("Error checking for launchSites table", err.message);
         } else if (!row) {
           // Attach the launch_sites.db database
           db.run(
-            `ATTACH DATABASE '${dbLaunchSitesPath}' AS launch_sites_db`,
+            `ATTACH DATABASE '${dbLaunchSitesPath}' AS launchSites_db`,
             (err) => {
               if (err) {
-                console.error("Error attaching launch_sites.db", err.message);
+                console.error("Error attaching launchSites.db", err.message);
               } else {
-                console.log("Attached launch_sites.db database.");
+                console.log("Attached launchSites.db database.");
 
                 // Copy the launch_sites table from launch_sites.db to database.db
                 db.run(
-                  `CREATE TABLE IF NOT EXISTS launch_sites AS SELECT * FROM launch_sites_db.launch_sites`,
+                  `CREATE TABLE IF NOT EXISTS launchSites AS SELECT * FROM launchSites_db.launchSites`,
                   (err) => {
                     if (err) {
                       console.error(
-                        "Error copying launch_sites table",
+                        "Error copying launchSites table",
                         err.message
                       );
                     } else {
-                      console.log("Copied launch_sites table to database.db.");
+                      console.log("Copied launchSites table to database.db.");
                     }
 
                     // Detach the launch_sites.db database
-                    db.run(`DETACH DATABASE launch_sites_db`, (err) => {
+                    db.run(`DETACH DATABASE launchSites_db`, (err) => {
                       if (err) {
                         console.error(
-                          "Error detaching launch_sites.db",
+                          "Error detaching launchSites.db",
                           err.message
                         );
                       } else {
-                        console.log("Detached launch_sites.db database.");
+                        console.log("Detached launchSites.db database.");
+                      }
+                    });
+                  }
+                );
+              }
+            }
+          );
+          // Attach the countryCodes.db database
+          db.run(
+            `ATTACH DATABASE '${dbCountriesPath}' AS country_codes_db`,
+            (err) => {
+              if (err) {
+                console.error("Error attaching countryCodes.db", err.message);
+              } else {
+                console.log("Attached countryCodes.db database.");
+
+                // Copy the launch_sites table from launch_sites.db to database.db
+                db.run(
+                  `CREATE TABLE IF NOT EXISTS countryCodes AS SELECT * FROM country_codes_db.countryCodes`,
+                  (err) => {
+                    if (err) {
+                      console.error(
+                        "Error copying countryCodes table",
+                        err.message
+                      );
+                    } else {
+                      console.log("Copied countryCodes table to database.db.");
+                    }
+
+                    // Detach the launch_sites.db database
+                    db.run(`DETACH DATABASE country_codes_db`, (err) => {
+                      if (err) {
+                        console.error(
+                          "Error detaching countryCodes.db",
+                          err.message
+                        );
+                      } else {
+                        console.log("Detached Country Codes database.");
                       }
                     });
                   }
@@ -63,7 +101,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
             }
           );
         } else {
-          console.log("launch_sites table already exists in database.db.");
+          console.log(
+            "launchSites and countryCodes tables already exists in database.db."
+          );
         }
       }
     );
@@ -300,7 +340,7 @@ app.delete("/maintenance/:id", (req, res) => {
 // FLYING SITES
 // API endpoint to get launch site by coordinates
 app.get("/launch_sites", (req, res) => {
-  db.all("SELECT * FROM launch_sites", [], (err, rows) => {
+  db.all("SELECT * FROM launchSites", [], (err, rows) => {
     if (err) {
       res.status(400).json({ error: err.message });
       return;
@@ -373,6 +413,17 @@ app.delete("/items", (req, res) => {
       return;
     }
     res.json({ message: "All items deleted" });
+  });
+});
+
+// Country codes
+app.get("/fetchCountryCodes", (req, res) => {
+  db.all("SELECT * FROM countryCodes", [], (err, rows) => {
+    if (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    res.json({ data: rows });
   });
 });
 
