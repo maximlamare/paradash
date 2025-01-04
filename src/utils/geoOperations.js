@@ -59,8 +59,8 @@ function getClosestPoint(searchCoords, listOfCoords) {
 }
 
 function extractNamesAndCoordinates(objectsArray) {
-  const names = objectsArray.map((obj) => `${obj.name}, ${obj.country}`);
-  const coordinates = objectsArray.map((obj) => [obj.latitude, obj.longitude]);
+  const names = objectsArray.map((obj) => `${obj.Name}, ${obj.Country}`);
+  const coordinates = objectsArray.map((obj) => [obj.Latitude, obj.Longitude]);
   return { names, coordinates };
 }
 
