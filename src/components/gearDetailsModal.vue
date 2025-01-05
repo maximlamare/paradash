@@ -1,6 +1,6 @@
 <template>
   <div class="modal-overlay">
-    <div class="modal-container max-w-full h-full overflow-auto">
+    <div class="modal-container">
       <div class="flex justify-end">
         <button @click="$emit('close')" class="button-close">Close</button>
       </div>

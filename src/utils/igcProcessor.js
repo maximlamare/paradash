@@ -50,3 +50,26 @@ export async function processIGCContent(content, launchsites) {
     flightLandingCountryCode: landingPlace.countryCode,
   };
 }
+
+export async function getIGCgeoContent(IGCcontent) {
+  // Parse the IGC data
+  const flightData = igcParser.parse(IGCcontent);
+
+  // Extract latitude and longitude from the first fix
+  const startLatitude = flightData.fixes[0].latitude;
+  const startLongitude = flightData.fixes[0].longitude;
+
+  const endLatitude = flightData.fixes[flightData.fixes.length - 1].latitude;
+  const endLongitude = flightData.fixes[flightData.fixes.length - 1].longitude;
+
+  // Get polyline coordinates
+  const polyLine = flightData.fixes.map((fix) => [fix.latitude, fix.longitude]);
+
+  return {
+    startLatitude: startLatitude,
+    startLongitude: startLongitude,
+    endLatitude: endLatitude,
+    endLongitude: endLongitude,
+    polyLine: polyLine,
+  };
+}

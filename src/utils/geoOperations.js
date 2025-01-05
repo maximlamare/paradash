@@ -94,36 +94,6 @@ function getStartPlaceName(lat, lon, launchsites) {
   }
 }
 
-// async function getDHVStartPlaceName(lat, lon) {
-//   try {
-//     const filePath = "/Users/mlamare/repos/paradash/backend/launchSites.csv";
-
-//     if (!fs.existsSync(filePath)) {
-//       throw new Error(`File not found: ${filePath}`);
-//     }
-
-//     const results = await new Promise((resolve, reject) => {
-//       const data = [];
-//       fs.createReadStream(filePath)
-//         .pipe(csv())
-//         .on("data", (row) => data.push(row))
-//         .on("end", () => resolve(data))
-//         .on("error", (error) => reject(error));
-//     });
-//     const coordinates = results.map((row) => [
-//       parseFloat(row.Latitude),
-//       parseFloat(row.Longitude),
-//     ]);
-
-//     const cP = getClosestPointIndex([lat, lon], coordinates);
-
-//     return results[cP];
-//   } catch (error) {
-//     console.error("Error fetching paragliding data:", error);
-//     throw error;
-//   }
-// }
-
 async function getOSMPlaceName(lat, lon) {
   try {
     const response = await axios.get(

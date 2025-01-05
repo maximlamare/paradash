@@ -14,3 +14,17 @@
 .button-green {
   @apply bg-green-600 text-white px-4 py-2 rounded-lg;
 }
+.filter-button {
+  background-color: white;
+  border: 1px solid #7c7e80;
+  border-radius: 12px;
+  color: #7c7e80;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition:
+    background-color 0.3s,
+    color 0.3s;
+}
+.filter-button.active {
+  @apply bg-sky-600 text-white;
+}

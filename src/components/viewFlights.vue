@@ -3,29 +3,42 @@
     <div class="flex justify-between items-center mb-8">
       <h1 class="page-title1">Flight log</h1>
     </div>
-    <div class="categories-list">
+    <div class="page-filter-list">
       <button
         v-for="category in categories"
         :key="category"
         @click="toggleCategory(category)"
         :class="[
-          'category-button',
+          'filter-button',
           { active: selectedCategories.includes(category) },
         ]"
       >
         {{ category }}
       </button>
     </div>
+    <div class="page-filter-list mt-4">
+      <button
+        v-for="flightType in flightTypes"
+        :key="flightType"
+        @click="toggleFlightType(flightType)"
+        :class="[
+          'filter-button',
+          { active: selectedFlightTypes.includes(flightType) },
+        ]"
+      >
+        {{ flightType }}
+      </button>
+    </div>
     <div class="flex justify-end mb-8"></div>
 
-    <div v-if="flights.length">
+    <div v-if="filteredFlights.length">
       <div
-        v-for="(flight, index) in flights"
+        v-for="(flight, index) in filteredFlights"
         :key="flight.id"
         class="flight-entry"
       >
         <div class="flight-details">
-          <div class="flight-index">{{ flights.length - index }}</div>
+          <div class="flight-index">{{ filteredFlights.length - index }}</div>
 
           <div class="flight-detail">
             <p>{{ flight.date }}</p>
@@ -39,14 +52,23 @@
           </div>
           <div class="flight-detail">
             <p><i>Takeoff:</i></p>
-            <p>{{ displayValue(flight.takeoffLocation) }}</p>
+            <p>
+              {{ displayValue(flight.takeoffLocation) }},
+              {{ displayValue(flight.takeoffCountryCode) }}
+            </p>
           </div>
           <div class="flight-detail">
             <p><i>Landing:</i></p>
-            <p>{{ displayValue(flight.landingLocation) }}</p>
+            <p>
+              {{ displayValue(flight.landingLocation) }},
+              {{ displayValue(flight.landingCountryCode) }}
+            </p>
           </div>
           <div class="flight-detail">
-            <button @click="openFlight" class="button-blue flight-button">
+            <button
+              @click="openFlight(flight)"
+              class="button-blue flight-button"
+            >
               Details
             </button>
           </div>
@@ -54,25 +76,39 @@
       </div>
     </div>
     <div v-else>
-      <p>No flights available.</p>
+      <p>No flights available for this combination of filters.</p>
     </div>
+    <flightDetails
+      :visible="isModalVisible"
+      :flight="selectedFlight"
+      @close="isModalVisible = false"
+    />
   </div>
 </template>
+
 <script>
 import axios from "axios";
+import flightDetails from "@/components/flightDetails.vue";
 
 export default {
+  components: {
+    flightDetails,
+  },
   data() {
     return {
       flights: [],
       categories: [],
+      flightTypes: [],
       selectedCategories: [],
+      selectedFlightTypes: [],
       filteredFlights: [],
+      isModalVisible: false,
+      selectedFlight: null,
     };
   },
   created() {
     this.fetchAllFlights();
-    this.fetchCategories();
+    this.fetchFilters();
   },
   methods: {
     fetchAllFlights() {
@@ -86,6 +122,7 @@ export default {
             const dateTimeB = new Date(`${b.date}T${b.flight_start}`);
             return dateTimeB - dateTimeA;
           });
+          this.filterFlights();
         })
         .catch((error) => {
           console.error("Error fetching flights:", error);
@@ -94,15 +131,34 @@ export default {
     displayValue(value) {
       return value ? value : "?";
     },
-    fetchCategories() {
+    fetchFilters() {
       axios
         .get("http://localhost:3002/get-settings")
         .then((response) => {
           this.categories = response.data.categories;
+          this.selectedCategories = this.categories.slice();
+          this.flightTypes = response.data.types;
+          this.selectedFlightTypes = this.flightTypes.slice();
+          this.filterFlights();
         })
         .catch((error) => {
           console.error("Error fetching settings:", error);
         });
+    },
+    filterFlights() {
+      if (
+        this.selectedCategories.length === 0 ||
+        this.selectedFlightTypes.length === 0
+      ) {
+        this.filteredFlights = [];
+      } else {
+        this.filteredFlights = this.flights.filter((flight) => {
+          return (
+            this.selectedCategories.includes(flight.category) &&
+            this.selectedFlightTypes.includes(flight.type)
+          );
+        });
+      }
     },
     toggleCategory(category) {
       const index = this.selectedCategories.indexOf(category);
@@ -113,6 +169,19 @@ export default {
       }
       this.filterFlights();
     },
+    toggleFlightType(flightType) {
+      const index = this.selectedFlightTypes.indexOf(flightType);
+      if (index > -1) {
+        this.selectedFlightTypes.splice(index, 1);
+      } else {
+        this.selectedFlightTypes.push(flightType);
+      }
+      this.filterFlights();
+    },
+    openFlight(flight) {
+      this.selectedFlight = flight;
+      this.isModalVisible = true;
+    },
   },
 };
 </script>
@@ -120,27 +189,5 @@ export default {
 <style scoped>
 @import "@/assets/flights.css";
 @import "@/assets/buttons.css";
-
-.categories-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.category-button {
-  background-color: white;
-  border: 1px solid #007bff;
-  border-radius: 12px;
-  color: #007bff;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  transition:
-    background-color 0.3s,
-    color 0.3s;
-}
-
-.category-button.active {
-  background-color: #007bff;
-  color: white;
-}
+@import "@/assets/pages.css";
 </style>
