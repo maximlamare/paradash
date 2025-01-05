@@ -1,0 +1,25 @@
+.map-container {
+    width: 100%;
+    padding-top: 60%; /* 1:1 Aspect Ratio */
+    position: relative;
+  }
+  
+  .map-container > .leaflet-container {
+    position: absolute !important;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+  }
+
+  .map-empty {
+    width: 100%;
+    padding-top: 40%; /* 1:1 Aspect Ratio */
+    position: relative;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    font-size: 1.2em;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+}

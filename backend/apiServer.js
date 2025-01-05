@@ -25,6 +25,9 @@ app.use(
 // For settings file
 const settingsFilePath = path.join(__dirname, "appSettings.json");
 
+// Serve the IGC files
+app.use(express.static(path.join(__dirname, "uploads", "igc")));
+
 app.post("/save-settings", (req, res) => {
   const { categories, types, gliderWarningDuration, rescueWarningDuration } =
     req.body;
@@ -81,6 +84,27 @@ app.post("/uploadFile", upload.single("igcFile"), (req, res) => {
   res.status(200).json({
     message: "File uploaded successfully",
     filePath: req.file.path, // Include the file path in the response
+  });
+});
+
+// Route for file reading
+// Endpoint to read an IGC file
+app.get("/read-igc", (req, res) => {
+  const igcFilePath = req.query.filePath;
+
+  if (!igcFilePath) {
+    return res.status(400).json({ error: "File path is required" });
+  }
+
+  console.log("Reading IGC file:", igcFilePath);
+
+  fs.readFile(igcFilePath, "utf8", (err, data) => {
+    if (err) {
+      console.error("Error reading IGC file:", err);
+      return res.status(500).json({ error: "Error reading IGC file" });
+    }
+
+    res.json({ content: data });
   });
 });
 
