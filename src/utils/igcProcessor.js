@@ -6,8 +6,9 @@ export async function processIGCContent(content, launchsites) {
   const flightData = igcParser.parse(content);
 
   // Get start time
-  const startTimeUTC = flightData.fixes[0].time.slice(0, 5);
-  const startTime = new Date(flightData.date + "T" + startTimeUTC + "Z");
+  const startTime = new Date(
+    flightData.date + "T" + flightData.fixes[0].time + "Z"
+  );
   const startTimeString = startTime.toLocaleTimeString("de-AT", {
     hour: "2-digit",
     minute: "2-digit",
@@ -30,6 +31,7 @@ export async function processIGCContent(content, launchsites) {
   const flightDuration = endTime - startTime;
 
   const totalMinutes = Math.round(flightDuration / 1000 / 60);
+
   // Convert flight duration to hh:mm format
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
