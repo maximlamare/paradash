@@ -117,6 +117,7 @@ let db = new sqlite3.Database(dbPath, (err) => {
             date TEXT,
             glider INTEGER,
             flightStart TEXT,
+            flightEnd TEXT,
             takeoffLocation TEXT,
             takeoffCountryCode TEXT,
             landingLocation TEXT,
@@ -372,6 +373,7 @@ app.post("/save-flight", (req, res) => {
     date,
     glider,
     flightStart,
+    flightEnd,
     takeoffLocation,
     takeoffCountryCode,
     landingLocation,
@@ -382,13 +384,14 @@ app.post("/save-flight", (req, res) => {
     igcFilePath,
   } = req.body;
   db.run(
-    "INSERT INTO flights (category, type, date, glider, flightStart, takeoffLocation, takeoffCountryCode, landingLocation, landingCountryCode, flightTime, links, comments, igcFilePath) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO flights (category, type, date, glider, flightStart, flightEnd, takeoffLocation, takeoffCountryCode, landingLocation, landingCountryCode, flightTime, links, comments, igcFilePath) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [
       category,
       type,
       date,
       glider,
       flightStart,
+      flightEnd,
       takeoffLocation,
       takeoffCountryCode,
       landingLocation,

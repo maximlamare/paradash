@@ -6,21 +6,36 @@ export async function processIGCContent(content, launchsites) {
   const flightData = igcParser.parse(content);
 
   // Get start time
-  const startTime = flightData.fixes[0].time.slice(0, 5);
+  const startTimeUTC = flightData.fixes[0].time.slice(0, 5);
+  const startTime = new Date(flightData.date + "T" + startTimeUTC + "Z");
+  const startTimeString = startTime.toLocaleTimeString("de-AT", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 
   // Compute flight duration
-  const startDateTime = new Date(
-    flightData.date + "T" + flightData.fixes[0].time
+  const endTime = new Date(
+    flightData.date +
+      "T" +
+      flightData.fixes[flightData.fixes.length - 1].time +
+      "Z"
   );
-  const endDateTime = new Date(
-    flightData.date + "T" + flightData.fixes[flightData.fixes.length - 1].time
-  );
-  const flightDuration = endDateTime - startDateTime;
+  const endTimeString = endTime.toLocaleTimeString("de-AT", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  const flightDuration = endTime - startTime;
+
   const totalMinutes = Math.round(flightDuration / 1000 / 60);
   // Convert flight duration to hh:mm format
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  const flightDurationHHmm = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+  const flightDurationHHmm = `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}`;
 
   // Extract latitude and longitude from the first fix
   const startLatitude = flightData.fixes[0].latitude;
@@ -42,7 +57,8 @@ export async function processIGCContent(content, launchsites) {
 
   return {
     flightDate: flightData.date,
-    flightStartTime: startTime,
+    flightStartTime: startTimeString,
+    flightEndTime: endTimeString,
     flightDuration: flightDurationHHmm,
     flightTakeoff: startLocationArray[0],
     flightTakeoffCountryCode: startLocationArray[1],

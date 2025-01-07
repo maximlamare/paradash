@@ -215,6 +215,7 @@ export default {
       flight: {
         date: "",
         flightStart: "",
+        flightEnd: "",
         takeoffLocation: "",
         takeoffCountryCode: "",
         landingLocation: "",
@@ -277,6 +278,7 @@ export default {
           const result = await processIGCContent(igcContent, this.sites);
           this.flight.date = result.flightDate;
           this.flight.flightStart = result.flightStartTime;
+          this.flight.flightEnd = result.flightEndTime;
           this.flight.takeoffLocation = result.flightTakeoff;
           this.flight.takeoffCountryCode = result.flightTakeoffCountryCode;
           this.flight.landingLocation = result.flightLanding;
