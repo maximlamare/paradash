@@ -108,6 +108,26 @@ app.get("/read-igc", (req, res) => {
   });
 });
 
+// Route for file deletion
+app.delete("/delete-igc-file", (req, res) => {
+  const { filePath } = req.body;
+
+  if (!filePath) {
+    return res.status(400).json({ error: "File path is required" });
+  }
+
+  console.log("Deleting IGC file:", filePath);
+
+  fs.unlink(path.resolve(filePath), (err) => {
+    if (err) {
+      console.error("Error deleting IGC file:", err);
+      return res.status(500).json({ error: "Error deleting IGC file" });
+    }
+
+    res.json({ message: "IGC file deleted successfully" });
+  });
+});
+
 app.listen(port, () => {
   console.log(`API proxy server running on port ${port}`);
 });

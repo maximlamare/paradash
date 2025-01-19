@@ -1,10 +1,12 @@
 <template>
   <div v-if="visible" class="modal-overlay">
     <div class="modal-container">
-      <div class="flex justify-end">
+      <div class="flex justify-end space-x-2">
+        <button @click="showDeleteConfirmation = true" class="button-delete">
+          Delete flight
+        </button>
         <button @click="closeModal" class="button-close">Close</button>
       </div>
-      <h2 class="modal-title-center">Flight detail</h2>
       <div class="flex min-h-[80vh]">
         <div class="w-1/2 p-4">
           <div class="metric-grid">
@@ -30,7 +32,7 @@
             </div>
             <div class="metric-box-blue">
               <p class="metric-label"><i>Landing time:</i></p>
-              <p class="metric-value">{{ formatData(flight.flightEnd) }}</p>
+              <p class="metric-value">{{ formatData(computedFlightEnd()) }}</p>
             </div>
           </div>
           <p style="margin-top: 2rem"></p>
@@ -38,6 +40,18 @@
             <p class="metric-label"><i>Glider:</i></p>
             <p class="metric-value">
               {{ formatData(glider.brand) }} {{ formatData(glider.model) }}
+            </p>
+          </div>
+          <p style="margin-top: 1rem"></p>
+          <div class="metric-box-blue">
+            <p class="metric-label"><i>Links:</i></p>
+            <p class="metric-link" v-html="formatLinks()"></p>
+          </div>
+          <p style="margin-top: 1rem"></p>
+          <div class="metric-box-grey">
+            <p class="metric-label"><i>Comments:</i></p>
+            <p class="metric-text">
+              {{ formatData(flight.comments) }}
             </p>
           </div>
         </div>
@@ -100,6 +114,25 @@
       </div>
     </div>
   </div>
+  <!-- Delete Confirmation Modal -->
+  <div v-if="showDeleteConfirmation" class="modal-overlay-small">
+    <div class="modal-container-small">
+      <div class="p-4">
+        <p>
+          Are you really sure you want to delete this flight? This is
+          irreversible!
+        </p>
+        <div class="flex justify-center space-x-2 mt-4">
+          <button @click="showDeleteConfirmation = false" class="button-blue">
+            No, don't delete
+          </button>
+          <button @click="confirmDeleteFlight" class="button-delete">
+            Yes, delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -139,11 +172,36 @@ export default {
       leafletMap: null,
       bounds: null,
       glider: { brand: null, model: null },
+      showDeleteConfirmation: false, // Add this data property
     };
   },
   methods: {
     closeModal() {
       this.$emit("close");
+    },
+    deleteFlight() {
+      this.showDeleteConfirmation = true;
+    },
+    async confirmDeleteFlight() {
+      try {
+        await axios.delete(
+          `http://localhost:3000/delete-flight/${this.flight.id}`
+        );
+        // Delete the associated IGC file if it exists
+        if (this.flight.igcFilePath) {
+          await axios.delete(`http://localhost:3002/delete-igc-file`, {
+            data: { filePath: this.flight.igcFilePath },
+          });
+        }
+        console.log("Flight deleted");
+        this.$emit("flight-deleted");
+
+        // Close the delete confirmation modal and the flight details modal
+        this.showDeleteConfirmation = false;
+        this.closeModal();
+      } catch (error) {
+        console.error("Error deleting flight:", error);
+      }
     },
     onMapReady() {
       // Store the raw Leaflet map instance
@@ -155,7 +213,6 @@ export default {
     },
     async parseIGCFile() {
       if (this.flight.igcFilePath) {
-        console.log("IGC flight path exists");
         try {
           const response = await fetch(
             `http://localhost:3002/read-igc?filePath=${encodeURIComponent(
@@ -179,19 +236,22 @@ export default {
         } catch (error) {
           console.error("Error reading IGC file:", error);
         }
-      } else {
-        console.log("ICGflight path does not exist");
       }
     },
     async fetchGlider() {
       await axios
         .get("http://localhost:3000/gear")
         .then((response) => {
-          console.log("flight", this.flight);
           const allGear = response.data.data;
-          const toto = allGear.find((gear) => gear.id === this.flight.glider);
-          this.glider = { brand: toto.brand, model: toto.model };
-          console.log("Glider:", this.glider);
+          const matchingGlider = allGear.find(
+            (gear) => gear.id === this.flight.glider
+          );
+          if (matchingGlider.brand) {
+            this.glider.brand = matchingGlider.brand;
+          }
+          if (matchingGlider.model) {
+            this.glider.model = matchingGlider.model;
+          }
         })
         .catch((error) => {
           console.error("Error fetching gear:", error);
@@ -199,6 +259,32 @@ export default {
     },
     formatData(data) {
       return data ? data : "N/A";
+    },
+    computeEnd() {
+      const start = new Date(`${this.flight.date}T${this.flight.flightStart}`);
+      const duration = this.flight.flightTime.split(":");
+      const end = new Date(
+        start.getTime() + duration[0] * 60 * 60 * 1000 + duration[1] * 60 * 1000
+      );
+      return end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    },
+    computedFlightEnd() {
+      return this.flight.flightEnd || this.computeEnd();
+    },
+    formatLinks() {
+      const linksArray = JSON.parse(this.flight.links);
+      if (Array.isArray(linksArray) && linksArray.length > 0) {
+        return linksArray
+          .map((link) => {
+            const formattedLink =
+              link.startsWith("http://") || link.startsWith("https://")
+                ? link
+                : `http://${link}`;
+            return `<a href="${formattedLink}" target="_blank">${link}</a>`;
+          })
+          .join("<br>");
+      }
+      return "N/A";
     },
   },
   watch: {

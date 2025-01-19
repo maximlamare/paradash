@@ -382,8 +382,12 @@ export default {
       this.flight.links.splice(index, 1);
     },
     saveFlight() {
+      const flightToSave = {
+        ...this.flight,
+        links: JSON.stringify(this.flight.links),
+      };
       axios
-        .post("http://localhost:3000/save-flight", this.flight)
+        .post("http://localhost:3000/save-flight", flightToSave)
         .then(() => {
           this.uploadSuccess = true;
         })

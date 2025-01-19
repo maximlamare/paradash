@@ -21,3 +21,11 @@
 .metric-value {
   @apply text-center text-4xl mt-6 font-bold;
 }
+
+.metric-text {
+  @apply text-center text-lg mt-6;
+}
+
+.metric-link {
+  @apply text-center text-lg mt-6 text-blue-900 underline;
+}

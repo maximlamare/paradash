@@ -82,6 +82,7 @@
       :visible="isModalVisible"
       :flight="selectedFlight"
       @close="isModalVisible = false"
+      @flight-deleted="fetchAllFlights"
     />
   </div>
 </template>
