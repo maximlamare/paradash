@@ -66,6 +66,7 @@ export async function processIGCContent(content, launchsites) {
     flightTakeoffCountryCode: startLocationArray[1],
     flightLanding: landingPlace.city,
     flightLandingCountryCode: landingPlace.countryCode,
+    security: flightData.security,
   };
 }
 
