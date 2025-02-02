@@ -33,7 +33,7 @@ function haversineDistanceM(lat1Deg, lon1Deg, lat2Deg, lon2Deg) {
     cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
   const c = 2 * atan2(sqrt(a), sqrt(1 - a));
   const d = R * c;
-  return d; // distance in km
+  return d; // distance in m
 }
 
 function getClosestPoint(searchCoords, listOfCoords) {
@@ -62,6 +62,22 @@ function extractNamesAndCoordinates(objectsArray) {
   const names = objectsArray.map((obj) => `${obj.Name}, ${obj.Country}`);
   const coordinates = objectsArray.map((obj) => [obj.Latitude, obj.Longitude]);
   return { names, coordinates };
+}
+
+function getCrowDistance(lat1, lon1, lat2, lon2) {
+  return haversineDistanceM(lat1, lon1, lat2, lon2);
+}
+
+function getTrackDistance(dataPoints) {
+  let totalDistance = 0;
+
+  for (let i = 0; i < dataPoints.length - 1; i++) {
+    const [lat1, lon1] = dataPoints[i];
+    const [lat2, lon2] = dataPoints[i + 1];
+    totalDistance += haversineDistanceM(lat1, lon1, lat2, lon2);
+  }
+
+  return totalDistance;
 }
 
 function getStartPlaceName(lat, lon, launchsites) {
@@ -119,4 +135,9 @@ async function getOSMPlaceName(lat, lon) {
   }
 }
 
-module.exports = { getStartPlaceName, getOSMPlaceName };
+module.exports = {
+  getStartPlaceName,
+  getOSMPlaceName,
+  getCrowDistance,
+  getTrackDistance,
+};
