@@ -98,15 +98,15 @@
               </p>
             </div>
             <div class="metric-box-grey">
-              <p class="metric-label"><i>Flight Distance direct:</i></p>
+              <p class="metric-label"><i>Flight Distance direct (km):</i></p>
               <p class="metric-value">
-                {{ formatData(flight.flightDistance) }}
+                {{ formatData(this.crowDistance) }}
               </p>
             </div>
             <div class="metric-box-grey">
-              <p class="metric-label"><i>Flight Distance track:</i></p>
+              <p class="metric-label"><i>Flight Distance track (km):</i></p>
               <p class="metric-value">
-                {{ formatData(flight.flighttrack) }}
+                {{ formatData(this.trackDistance) }}
               </p>
             </div>
           </div>
@@ -147,6 +147,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import { getIGCgeoContent } from "@/utils/igcProcessor";
 import L from "leaflet";
+import { getCrowDistance, getTrackDistance } from "@/utils/geoOperations";
 export default {
   components: {
     LMap,
@@ -173,6 +174,8 @@ export default {
       bounds: null,
       glider: { brand: null, model: null },
       showDeleteConfirmation: false, // Add this data property
+      crowDistance: null,
+      trackDistance: null,
     };
   },
   methods: {
@@ -225,6 +228,17 @@ export default {
           const data = await response.json();
           const igcContent = data.content;
           const result = await getIGCgeoContent(igcContent);
+          this.crowDistance = (
+            getCrowDistance(
+              result.startLatitude,
+              result.startLongitude,
+              result.endLatitude,
+              result.endLongitude
+            ) / 1000
+          ).toFixed(1);
+          this.trackDistance = (
+            getTrackDistance(result.polyLine) / 1000
+          ).toFixed(1);
           this.startMarker = [result.startLatitude, result.startLongitude];
           this.endMarker = [result.endLatitude, result.endLongitude];
           this.polyline = result.polyLine;
@@ -270,6 +284,17 @@ export default {
     },
     computedFlightEnd() {
       return this.flight.flightEnd || this.computeEnd();
+    },
+    computedcrowDistance() {
+      return getCrowDistance(
+        this.flight.startLatitude,
+        this.flight.startLongitude,
+        this.flight.endLatitude,
+        this.flight.endLongitude
+      );
+    },
+    computedFlighttrack() {
+      return this.flight.flightTrack || "N/A";
     },
     formatLinks() {
       const linksArray = JSON.parse(this.flight.links);
