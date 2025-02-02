@@ -119,10 +119,11 @@ export default {
           this.flights = response.data.data;
           // Sort flights by date in descending order
           this.flights.sort((a, b) => {
-            const dateTimeA = new Date(`${a.date}T${a.flight_start}`);
-            const dateTimeB = new Date(`${b.date}T${b.flight_start}`);
+            const dateTimeA = new Date(`${a.date}T${a.flightStart}`);
+            const dateTimeB = new Date(`${b.date}T${b.flightStart}`);
             return dateTimeB - dateTimeA;
           });
+          console.log("Fetched flights:", this.flights);
           this.filterFlights();
         })
         .catch((error) => {
