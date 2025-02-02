@@ -35,19 +35,45 @@
             :value="flight.flightStart"
           />
         </div>
+        <h3 class="page-title3">Flight duration (hh:mm)</h3>
+        <div class="mb-4">
+          <input
+            class="modal-dropdown w-1/4"
+            type="time"
+            id="duration"
+            @input="updateFlightField('flightTime', $event)"
+            :value="flight.flightTime"
+          />
+        </div>
         <h3 class="page-title3">Start location</h3>
         <div class="mb-4 flex gap-4">
           <label for="start" class="w-1/2 italic">Location</label>
+        </div>
+        <div class="mb-4 flex gap-4">
+          <select
+            v-model="flight.startLocations"
+            @change="updateFlightField('takeoffLocation', $event)"
+            id="startLocation"
+            class="modal-dropdown w-1/2"
+          >
+            <option v-for="location in startLocations" :value="location">
+              {{ location }}
+            </option>
+            <option value="add-new">Add new location</option>
+          </select>
+          <input
+            v-if="flight.startLocations === 'add-new'"
+            v-model="flight.newStartLocation"
+            type="text"
+            placeholder="Enter new start location"
+            class="modal-dropdown w-1/2"
+            @input="updateFlightField('takeoffLocation', $event)"
+          />
+        </div>
+        <div class="mb-4 flex gap-4">
           <label for="startCountry" class="w-1/2 italic">Country</label>
         </div>
         <div class="mb-4 flex gap-4">
-          <input
-            class="modal-dropdown w-1/2"
-            type="text"
-            id="start"
-            @input="updateFlightField('takeoffLocation', $event)"
-            :value="this.flight.takeoffLocation"
-          />
           <select
             class="modal-dropdown w-1/2"
             id="startCountry"
@@ -66,16 +92,32 @@
         <h3 class="page-title3">Landing location</h3>
         <div class="mb-4 flex gap-4">
           <label for="landing" class="w-1/2 italic">Location</label>
+        </div>
+        <div class="mb-4 flex gap-4">
+          <select
+            v-model="flight.landLocations"
+            @change="updateFlightField('landingLocation', $event)"
+            id="landLocations"
+            class="modal-dropdown w-1/2"
+          >
+            <option v-for="location in landLocations" :value="location">
+              {{ location }}
+            </option>
+            <option value="add-new">Add new location</option>
+          </select>
+          <input
+            v-if="flight.landLocations === 'add-new'"
+            v-model="flight.newLandLocation"
+            type="text"
+            placeholder="Enter new landing location"
+            class="modal-dropdown w-1/2"
+            @input="updateFlightField('landingLocation', $event)"
+          />
+        </div>
+        <div class="mb-4 flex gap-4">
           <label for="landingCountry" class="w-1/2 italic">Country</label>
         </div>
         <div class="mb-4 flex gap-4">
-          <input
-            class="modal-dropdown w-1/2"
-            type="text"
-            id="landing"
-            @input="updateFlightField('landingLocation', $event)"
-            :value="this.flight.landingLocation"
-          />
           <select
             class="modal-dropdown w-1/2"
             id="landingCountry"
@@ -90,16 +132,6 @@
               {{ country.code }} ({{ country.country }})
             </option>
           </select>
-        </div>
-        <h3 class="page-title3">Flight duration (hh:mm)</h3>
-        <div class="mb-4">
-          <input
-            class="modal-dropdown w-1/4"
-            type="time"
-            id="duration"
-            @input="updateFlightField('flightTime', $event)"
-            :value="flight.flightTime"
-          />
         </div>
       </div>
       <div class="w-1/2 md:w-1/2 pl-4">
@@ -138,6 +170,7 @@
           <select
             class="modal-dropdown w-full"
             id="glider"
+            v-model="flight.glider_id"
             @change="updateFlightField('glider', $event)"
             :value="flight.glider_id"
           >
@@ -193,13 +226,24 @@
       </div>
     </div>
 
-    <div class="flex justify-center mt-8">
+    <div class="flex flex-col items-center mt-8">
       <div v-if="uploadSuccess">
         <button class="button-green">Flight saved</button>
       </div>
       <div v-else>
-        <p v-if="errorMessage" class="text-red-500">{{ errorMessage }}</p>
-        <button @click="saveFlight" class="button-blue">Save flight</button>
+        <button
+          @click="saveFlight"
+          :class="{
+            'button-blue': !isFlightEmpty,
+            'button-close': isFlightEmpty,
+          }"
+          :disabled="isFlightEmpty"
+        >
+          Save flight
+        </button>
+        <p v-if="errorMessage" class="text-red-500 text-center mt-2">
+          {{ errorMessage }}
+        </p>
       </div>
     </div>
   </div>
@@ -207,7 +251,7 @@
 
 <script>
 import { processIGCContent } from "@/utils/igcProcessor";
-import axios from "axios";
+import axios, { all } from "axios";
 
 export default {
   data() {
@@ -232,6 +276,8 @@ export default {
       types: [],
       gliders: [],
       countryCodes: [],
+      startLocations: [],
+      landLocations: [],
       errorMessage: "",
       uploadSuccess: false, // State variable to track upload status
     };
@@ -254,7 +300,7 @@ export default {
           .then((data) => {
             if (data.filePath) {
               this.flight.igcFilePath = data.filePath; // Save the file path to this.flight
-              this.processIGCFile(file);
+              this.processIGCFile(file, data.filePath);
             } else {
               this.errorMessage = "Error uploading file.";
             }
@@ -265,7 +311,7 @@ export default {
           });
       }
     },
-    async processIGCFile(file) {
+    async processIGCFile(file, filePath) {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const igcContent = e.target.result;
@@ -283,6 +329,27 @@ export default {
           this.flight.takeoffCountryCode = result.flightTakeoffCountryCode;
           this.flight.landingLocation = result.flightLanding;
           this.flight.landingCountryCode = result.flightLandingCountryCode;
+          this.flight.igcSerial = result.security;
+
+          // Check if file already exists in the database
+          axios.get("http://localhost:3000/items").then((response) => {
+            const existingSerials = [];
+            response.data.data.forEach((item) => {
+              existingSerials.push(item.igcSerial);
+            });
+            if (existingSerials.includes(result.security)) {
+              this.deleteFile(filePath);
+              Object.keys(this.flight).forEach((key) => {
+                if (Array.isArray(this.flight[key])) {
+                  this.flight[key] = [""];
+                } else {
+                  this.flight[key] = "";
+                }
+              });
+              console.error("Existing flight:");
+              this.errorMessage = "This flight already exists in the database.";
+            }
+          });
 
           // Automatically select the dropdown options based on the detected country codes
           this.$nextTick(() => {
@@ -292,6 +359,32 @@ export default {
             this.updateFlightField("landingCountryCode", {
               target: { value: result.flightLandingCountryCode },
             });
+            // Check if the start location exists in the dropdown
+            if (this.startLocations.includes(result.flightTakeoff)) {
+              this.updateFlightField("startLocations", {
+                target: { value: result.flightTakeoff },
+              });
+            } else {
+              this.updateFlightField("startLocations", {
+                target: { value: "add-new" },
+              });
+              this.updateFlightField("newStartLocation", {
+                target: { value: result.flightTakeoff },
+              });
+            }
+            // Check if the end location exists in the dropdown
+            if (this.landLocations.includes(result.flightLanding)) {
+              this.updateFlightField("landLocations", {
+                target: { value: result.flightLanding },
+              });
+            } else {
+              this.updateFlightField("landLocations", {
+                target: { value: "add-new" },
+              });
+              this.updateFlightField("newLandLocation", {
+                target: { value: result.flightLanding },
+              });
+            }
           });
           this.flight.flightTime = result.flightDuration;
           this.errorMessage = ""; // Clear error message if processing is successful
@@ -309,6 +402,10 @@ export default {
       } else {
         this.flight[field] = event.target.value;
       }
+      this.clearErrorMessage();
+    },
+    clearErrorMessage() {
+      this.errorMessage = "";
     },
     fetchSettings() {
       axios
@@ -339,8 +436,20 @@ export default {
           console.error("Error fetching gliders:", error);
         });
     },
-    fetchCountryCodes() {
+    fetchFlightsInfo() {
       axios.get("http://localhost:3000/items").then((response) => {
+        // Fetch starting locations from the database
+        const allStarts = [];
+        response.data.data.forEach((item) => {
+          allStarts.push(item.takeoffLocation);
+        });
+        this.startLocations = [...new Set(allStarts)];
+        // Fetch landing locations from the database
+        const allLands = [];
+        response.data.data.forEach((item) => {
+          allLands.push(item.landingLocation);
+        });
+        this.landLocations = [...new Set(allLands)];
         const takeoffCountryCodes = response.data.data.map(
           (item) => item.takeoffCountryCode
         );
@@ -386,21 +495,59 @@ export default {
         ...this.flight,
         links: JSON.stringify(this.flight.links),
       };
+
+      // Check if a flight with the same date and start time already exists
       axios
-        .post("http://localhost:3000/save-flight", flightToSave)
-        .then(() => {
-          this.uploadSuccess = true;
+        .get("http://localhost:3000/items")
+        .then((response) => {
+          const existingFlights = response.data.data;
+          const duplicateFlight = existingFlights.find(
+            (flight) =>
+              flight.date === this.flight.date &&
+              flight.flightStart === this.flight.flightStart
+          );
+
+          if (duplicateFlight) {
+            this.errorMessage =
+              "A flight with the same date and start time already exists.";
+            this.uploadSuccess = false;
+            return;
+          }
+
+          // If no duplicate flight, proceed to save the flight
+          axios
+            .post("http://localhost:3000/save-flight", flightToSave)
+            .then(() => {
+              this.uploadSuccess = true;
+            })
+            .catch((error) => {
+              this.uploadSuccess = false;
+              console.error("Error saving flight:", error);
+            });
         })
         .catch((error) => {
-          this.uploadSuccess = false;
-          console.error("Error saving flight:", error);
+          console.error("Error checking existing flights:", error);
         });
+    },
+    async deleteFile(currentFilePath) {
+      try {
+        await axios.delete(`http://localhost:3002/delete-igc-file`, {
+          data: { filePath: currentFilePath },
+        });
+      } catch (error) {
+        console.error("Error deleting flight:", error);
+      }
     },
   },
   created() {
     this.fetchSettings();
     this.fetchGliders();
-    this.fetchCountryCodes();
+    this.fetchFlightsInfo();
+  },
+  computed: {
+    isFlightEmpty() {
+      return this.flight.date === "";
+    },
   },
 };
 </script>
