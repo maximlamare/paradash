@@ -18,7 +18,10 @@
         <div
           v-for="item in category.items"
           :key="item.id"
-          class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border dark:border-gray-700 mb-4"
+          :class="[
+            'bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border dark:border-gray-700 mb-4',
+            { 'archived-item': item.archived == 1 },
+          ]"
           @click="openGearDetailsModal(item)"
         >
           <div class="p-4">
@@ -177,7 +180,7 @@
     </Modal>
 
     <Modal
-      v-if="showEditModal"
+      v-if="showEditModal && !editGear.archived"
       @close="showEditModal = false"
       title="Edit Gear"
     >
@@ -276,6 +279,13 @@
         </div>
         <div class="flex justify-center space-x-4">
           <button
+            @click="archiveGear(editGear.id)"
+            type="button"
+            class="button-delete"
+          >
+            Archive
+          </button>
+          <button
             type="button"
             @click="deleteGear(editGear.id)"
             class="button-delete"
@@ -285,6 +295,86 @@
           <button type="submit" class="button-blue">Save</button>
         </div>
       </form>
+    </Modal>
+    <Modal
+      v-if="showEditModal && editGear.archived"
+      @close="showEditModal = false"
+      title="Edit Archived Gear"
+    >
+      <div class="flex justify-center space-x-4">
+        <button
+          @click="unarchiveGear(editGear.id)"
+          type="button"
+          class="button-blue"
+        >
+          Unarchive
+        </button>
+        <button
+          type="button"
+          @click="deleteGear(editGear.id)"
+          class="button-delete"
+        >
+          Delete
+        </button>
+      </div>
+    </Modal>
+    <Modal
+      v-if="showArchiveModal"
+      @close="showArchiveModal = false"
+      title="Archive Gear"
+    >
+      <div class="mb-4">
+        <label for="archive_date" class="modal-text"
+          >Retirement/Sale Date</label
+        >
+        <input
+          v-model="archiveDate"
+          id="archive_date"
+          type="date"
+          class="modal-dropdown"
+        />
+      </div>
+      <div class="flex justify-center space-x-4">
+        <button
+          @click="confirmArchiveGear(editGear.id)"
+          type="button"
+          class="button-blue"
+        >
+          OK
+        </button>
+        <button
+          @click="showArchiveModal = false"
+          type="button"
+          class="button-delete"
+        >
+          Cancel
+        </button>
+      </div>
+    </Modal>
+    <Modal
+      v-if="showDeleteModal"
+      @close="showDeleteModal = false"
+      title="Delete Gear"
+    >
+      <div class="mb-4">
+        <p>Are you sure you want to delete this gear?</p>
+      </div>
+      <div class="flex justify-center space-x-4">
+        <button
+          @click="confirmDeleteGear(editGear.id)"
+          type="button"
+          class="button-blue"
+        >
+          Yes
+        </button>
+        <button
+          @click="showDeleteModal = false"
+          type="button"
+          class="button-delete"
+        >
+          No
+        </button>
+      </div>
     </Modal>
     <GearDetailsModal
       v-if="showGearDetailsModal"
@@ -314,20 +404,24 @@ export default {
       models: [],
       showAddModal: false,
       showEditModal: false,
+      showArchiveModal: false,
       showMaintenanceModal: false,
       showGearDetailsModal: false,
       newBrand: false,
       newBrandName: "",
       newModel: false,
       newModelName: "",
+      archiveDate: "",
+      gearToArchive: null,
+      showDeleteModal: false,
+      gearToDelete: null,
       newGear: {
         gear_type: "glider", // Default type
         brand: "",
         model: "",
         manufacturing_date: "",
         purchase_date: "",
-        total_flight_time: 0,
-        number_of_flights: 0,
+        archived: 0,
       },
       editGear: {
         id: null,
@@ -336,8 +430,7 @@ export default {
         model: "",
         manufacturing_date: "",
         purchase_date: "",
-        total_flight_time: 0,
-        number_of_flights: 0,
+        archived: 0,
       },
       selectedGear: null,
       maintenanceRecords: [],
@@ -372,6 +465,13 @@ export default {
                 console.error("Error fetching maintenance records:", error);
               });
           });
+          // Fetch the flight data for wings
+          // Fetch flight data for each glider
+          gear.forEach((item) => {
+            if (item.gear_type === "glider") {
+              this.fetchFlightData(item.id);
+            }
+          });
         })
         .catch((error) => {
           console.error("Error fetching gear:", error);
@@ -392,6 +492,33 @@ export default {
         })
         .catch((error) => {
           console.error("Error fetching brands and models:", error);
+        });
+    },
+    fetchFlightData(gliderId) {
+      axios
+        .get(`http://localhost:3000/items`)
+        .then((response) => {
+          const flights = response.data.data;
+          const relatedFlights = flights.filter(
+            (flight) => flight.glider === gliderId
+          );
+          const totalFlightTime =
+            relatedFlights.reduce((sum, flight) => {
+              const [hours, minutes] = flight.flightTime.split(":").map(Number);
+              return sum + hours * 60 + minutes;
+            }, 0) / 60; // Convert total minutes to hours
+
+          const numberOfFlights = relatedFlights.length;
+
+          // Update the corresponding glider in the equipment array
+          const glider = this.equipment.find((item) => item.id === gliderId);
+          if (glider) {
+            glider.total_flight_time = totalFlightTime.toFixed(2);
+            glider.number_of_flights = numberOfFlights;
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching flight data:", error);
         });
     },
     fetchSettings() {
@@ -499,6 +626,38 @@ export default {
           console.error("Error adding gear:", error);
         });
     },
+    archiveGear(id) {
+      this.gearToArchive = id;
+      this.showArchiveModal = true;
+    },
+    confirmArchiveGear(id) {
+      axios
+        .patch(`http://localhost:3000/gear/${id}`, { archived: 1 })
+        .then(() => {
+          // Update the archived status in the equipment array
+          const gear = this.equipment.find((item) => item.id === id);
+          if (gear) {
+            gear.archived = 1;
+          }
+          this.showEditModal = false;
+          this.showArchiveModal = false;
+        });
+    },
+    unarchiveGear(id) {
+      axios
+        .patch(`http://localhost:3000/gear/${id}`, { archived: 0 })
+        .then(() => {
+          // Update the archived status in the equipment array
+          const gear = this.equipment.find((item) => item.id === id);
+          if (gear) {
+            gear.archived = 0;
+          }
+          this.showEditModal = false;
+        })
+        .catch((error) => {
+          console.error("Error unarchiving gear:", error);
+        });
+    },
     editEntry(item) {
       this.editGear = { ...item };
       this.fetchBrandsAndModels(); // Fetch brands and models to ensure dropdowns are populated
@@ -516,12 +675,17 @@ export default {
         });
     },
     deleteGear(id) {
+      this.gearToDelete = id;
+      this.showDeleteModal = true;
+    },
+    confirmDeleteGear(id) {
       axios
         .delete(`http://localhost:3000/gear/${id}`)
         .then(() => {
           // Remove the deleted item from the equipment array
           this.equipment = this.equipment.filter((item) => item.id !== id);
           this.showEditModal = false;
+          this.showDeleteModal = false;
         })
         .catch((error) => {
           console.error("Error deleting gear:", error);
@@ -589,17 +753,32 @@ export default {
         glider: "Gliders",
         harness: "Harnesses",
         rescue: "Rescues",
+        archived: "Archived",
       };
       const categories = {};
+      const archivedItems = [];
+
       this.equipment.forEach((item) => {
-        if (!categories[item.gear_type]) {
-          categories[item.gear_type] = {
-            name: typeNames[item.gear_type],
-            items: [],
-          };
+        if (item.archived == 1) {
+          archivedItems.push(item);
+        } else {
+          if (!categories[item.gear_type]) {
+            categories[item.gear_type] = {
+              name: typeNames[item.gear_type],
+              items: [],
+            };
+          }
+
+          categories[item.gear_type].items.push(item);
         }
-        categories[item.gear_type].items.push(item);
       });
+      // Add archived items as a separate category at the end
+      if (archivedItems.length > 0) {
+        categories["archived"] = {
+          name: typeNames["archived"],
+          items: archivedItems,
+        };
+      }
       return Object.values(categories);
     },
   },
@@ -610,4 +789,7 @@ export default {
 @import "@/assets/modal.css";
 @import "@/assets/buttons.css";
 @import "@/assets/pages.css";
+.archived-item {
+  opacity: 0.5;
+}
 </style>
