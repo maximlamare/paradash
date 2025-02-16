@@ -73,7 +73,7 @@
               "
               class="text-red-500"
             >
-              <strong>Yearly check overdue!</strong>
+              <strong>Warning: maintenance needed!</strong>
             </p>
           </div>
         </div>
@@ -526,6 +526,7 @@ export default {
         .get("http://localhost:3002/get-settings")
         .then((response) => {
           this.gliderWarningDuration = response.data.gliderWarningDuration;
+          this.gliderWarningHours = response.data.gliderWarningHours;
           this.rescueWarningDuration = response.data.rescueWarningDuration;
         })
         .catch((error) => {
@@ -744,6 +745,15 @@ export default {
         );
         return new Date() > warningDate;
       }
+
+      // Check if total flight time is over the gliderWarningHours
+      if (
+        item.gear_type === "glider" &&
+        item.total_flight_time > this.gliderWarningHours
+      ) {
+        return true;
+      }
+
       return false;
     },
   },

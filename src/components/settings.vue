@@ -63,6 +63,18 @@
       </div>
     </div>
     <div class="mt-12 mb-12">
+      <label class="page-title2">Glider Warning Flight time (hours)</label>
+      <div>Set the flight time for your glider check</div>
+      <div>
+        <input
+          name="gliderWarningHours"
+          type="number"
+          v-model="gliderWarningHours"
+          class="modal-dropdown w-1/4 mt-2"
+        />
+      </div>
+    </div>
+    <div class="mt-12 mb-12">
       <label class="page-title2">Rescue Warning Duration (months)</label>
       <div>Set the reminder time for your rescue check</div>
       <div>
@@ -118,6 +130,7 @@ export default {
       categories: [],
       types: [],
       gliderWarningDuration: 12,
+      gliderWarningHours: 100,
       rescueWarningDuration: 12,
       tables: [],
       selectedTable: "",
@@ -136,6 +149,7 @@ export default {
           categories: this.categories,
           types: this.types,
           gliderWarningDuration: this.gliderWarningDuration,
+          gliderWarningHours: this.gliderWarningHours,
           rescueWarningDuration: this.rescueWarningDuration,
         })
         .then(() => {
@@ -166,6 +180,7 @@ export default {
           this.categories = response.data.categories;
           this.types = response.data.types;
           this.gliderWarningDuration = response.data.gliderWarningDuration;
+          this.gliderWarningHours = response.data.gliderWarningHours;
           this.rescueWarningDuration = response.data.rescueWarningDuration;
         })
         .catch((error) => {
