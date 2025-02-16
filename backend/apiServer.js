@@ -29,14 +29,20 @@ const settingsFilePath = path.join(__dirname, "appSettings.json");
 app.use(express.static(path.join(__dirname, "uploads", "igc")));
 
 app.post("/save-settings", (req, res) => {
-  const { categories, types, gliderWarningDuration, rescueWarningDuration } =
-    req.body;
+  const {
+    categories,
+    types,
+    gliderWarningDuration,
+    gliderWarningHours,
+    rescueWarningDuration,
+  } = req.body;
   fs.writeFile(
     settingsFilePath,
     JSON.stringify({
       categories,
       types,
       gliderWarningDuration,
+      gliderWarningHours,
       rescueWarningDuration,
     }),
     (err) => {
