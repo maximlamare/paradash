@@ -57,7 +57,7 @@
         <div class="flex justify-end mt-4">
           <div class="flex justify-end mt-4">
             <button
-              v-if="!isEditMode"
+              v-if="!isEditMode && !gear.archived"
               @click="openMaintenanceModal(gear)"
               class="button-blue mr-2"
             >
@@ -70,7 +70,11 @@
             >
               Save
             </button>
-            <button @click="toggleEditMode" class="button-delete mr-2">
+            <button
+              v-if="!gear.archived"
+              @click="toggleEditMode"
+              class="button-delete mr-2"
+            >
               {{ isEditMode ? "Cancel" : "Delete Maintance Records" }}
             </button>
           </div>
