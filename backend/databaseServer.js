@@ -126,6 +126,7 @@ let db = new sqlite3.Database(dbPath, (err) => {
             links TEXT,
             comments TEXT,
             igcFilePath TEXT,
+            igcSerial TEXT,
             FOREIGN KEY (glider) REFERENCES gear(id)
 
         )`);
@@ -136,8 +137,7 @@ let db = new sqlite3.Database(dbPath, (err) => {
             model TEXT,
             manufacturing_date TEXT,
             purchase_date TEXT,
-            total_flight_time INTEGER,
-            number_of_flights INTEGER
+            archived INTEGER DEFAULT 0
         )`);
     db.run(`CREATE TABLE IF NOT EXISTS maintenance (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -215,20 +215,11 @@ app.post("/gear", (req, res) => {
     model,
     manufacturing_date,
     purchase_date,
-    total_flight_time,
-    number_of_flights,
+    archived,
   } = req.body;
   db.run(
-    "INSERT INTO gear (gear_type, brand, model, manufacturing_date, purchase_date, total_flight_time, number_of_flights) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [
-      gear_type,
-      brand,
-      model,
-      manufacturing_date,
-      purchase_date,
-      total_flight_time,
-      number_of_flights,
-    ],
+    "INSERT INTO gear (gear_type, brand, model, manufacturing_date, purchase_date, archived) VALUES (?, ?, ?, ?, ?, ?)",
+    [gear_type, brand, model, manufacturing_date, purchase_date, archived],
     function (err) {
       if (err) {
         res.status(400).json({ error: err.message });
@@ -258,21 +249,30 @@ app.put("/gear/:id", (req, res) => {
     model,
     manufacturing_date,
     purchase_date,
-    total_flight_time,
-    number_of_flights,
+    archived,
   } = req.body;
   db.run(
-    "UPDATE gear SET gear_type = ?, brand = ?, model = ?, manufacturing_date = ?, purchase_date = ?, total_flight_time = ?, number_of_flights = ? WHERE id = ?",
-    [
-      gear_type,
-      brand,
-      model,
-      manufacturing_date,
-      purchase_date,
-      total_flight_time,
-      number_of_flights,
-      id,
-    ],
+    "UPDATE gear SET gear_type = ?, brand = ?, model = ?, manufacturing_date = ?, purchase_date = ?, archived = ? WHERE id = ?",
+    [gear_type, brand, model, manufacturing_date, purchase_date, archived, id],
+    function (err) {
+      if (err) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+      res.json({ message: "Gear updated", changes: this.changes });
+    }
+  );
+});
+app.patch("/gear/:id", (req, res) => {
+  const { id } = req.params;
+  const updates = req.body; // Ensure updates is defined
+  const fields = Object.keys(updates)
+    .map((key) => `${key} = ?`)
+    .join(", ");
+  const values = Object.values(updates);
+  db.run(
+    `UPDATE gear SET ${fields} WHERE id = ?`,
+    [...values, id],
     function (err) {
       if (err) {
         res.status(400).json({ error: err.message });
@@ -382,9 +382,10 @@ app.post("/save-flight", (req, res) => {
     links,
     comments,
     igcFilePath,
+    igcSerial,
   } = req.body;
   db.run(
-    "INSERT INTO flights (category, type, date, glider, flightStart, flightEnd, takeoffLocation, takeoffCountryCode, landingLocation, landingCountryCode, flightTime, links, comments, igcFilePath) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO flights (category, type, date, glider, flightStart, flightEnd, takeoffLocation, takeoffCountryCode, landingLocation, landingCountryCode, flightTime, links, comments, igcFilePath, igcSerial) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [
       category,
       type,
@@ -400,6 +401,7 @@ app.post("/save-flight", (req, res) => {
       links,
       comments,
       igcFilePath,
+      igcSerial,
     ],
     function (err) {
       if (err) {
@@ -419,6 +421,19 @@ app.delete("/items", (req, res) => {
       return;
     }
     res.json({ message: "All items deleted" });
+  });
+});
+
+// Delete a single flight by id
+// DELETE endpoint to delete a flight by ID
+app.delete("/delete-flight/:id", (req, res) => {
+  const flightId = req.params.id;
+  // Delete the flight from the database
+  db.run("DELETE FROM flights WHERE id = ?", [flightId], function (err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ message: "Flight deleted", changes: this.changes });
   });
 });
 
