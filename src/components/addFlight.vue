@@ -429,7 +429,7 @@ export default {
         .get("http://localhost:3000/gear")
         .then((response) => {
           this.gliders = response.data.data.filter(
-            (item) => item.gear_type === "glider"
+            (item) => item.gear_type === "glider" && item.archived === 0
           );
         })
         .catch((error) => {
