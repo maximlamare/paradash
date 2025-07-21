@@ -444,7 +444,7 @@ export default {
   methods: {
     fetchEquipment() {
       axios
-        .get("http://localhost:3000/gear")
+        .get("http://localhost:3001/gear")
         .then((response) => {
           const gear = response.data.data.map((item) => ({
             ...item,
@@ -454,7 +454,7 @@ export default {
           // Fetch maintenance records for each gear
           gear.forEach((item) => {
             axios
-              .get(`http://localhost:3000/maintenance?gear_id=${item.id}`)
+              .get(`http://localhost:3001/maintenance?gear_id=${item.id}`)
               .then((response) => {
                 this.maintenanceRecords = [
                   ...this.maintenanceRecords,
@@ -479,7 +479,7 @@ export default {
     },
     fetchBrandsAndModels() {
       axios
-        .get("http://localhost:3000/gear")
+        .get("http://localhost:3001/gear")
         .then((response) => {
           const brands = [
             ...new Set(response.data.data.map((item) => item.brand)),
@@ -496,7 +496,7 @@ export default {
     },
     fetchFlightData(gliderId) {
       axios
-        .get(`http://localhost:3000/items`)
+        .get(`http://localhost:3001/items`)
         .then((response) => {
           const flights = response.data.data;
           const relatedFlights = flights.filter(
@@ -523,7 +523,7 @@ export default {
     },
     fetchSettings() {
       return axios
-        .get("http://localhost:3002/get-settings")
+        .get("http://localhost:3001/get-settings")
         .then((response) => {
           this.gliderWarningDuration = response.data.gliderWarningDuration;
           this.gliderWarningHours = response.data.gliderWarningHours;
@@ -537,7 +537,7 @@ export default {
       if (this.selectedGear) {
         axios
           .get(
-            `http://localhost:3000/maintenance?gear_id=${this.selectedGear.id}`
+            `http://localhost:3001/maintenance?gear_id=${this.selectedGear.id}`
           )
           .then((response) => {
             this.maintenanceRecords = response.data.data.filter(
@@ -609,7 +609,7 @@ export default {
     },
     addGear() {
       axios
-        .post("http://localhost:3000/gear", this.newGear)
+        .post("http://localhost:3001/gear", this.newGear)
         .then(() => {
           this.fetchEquipment(); // Refetch equipment to update the UI
           this.showAddModal = false;
@@ -633,7 +633,7 @@ export default {
     },
     confirmArchiveGear(id) {
       axios
-        .patch(`http://localhost:3000/gear/${id}`, { archived: 1 })
+        .patch(`http://localhost:3001/gear/${id}`, { archived: 1 })
         .then(() => {
           // Update the archived status in the equipment array
           const gear = this.equipment.find((item) => item.id === id);
@@ -646,7 +646,7 @@ export default {
     },
     unarchiveGear(id) {
       axios
-        .patch(`http://localhost:3000/gear/${id}`, { archived: 0 })
+        .patch(`http://localhost:3001/gear/${id}`, { archived: 0 })
         .then(() => {
           // Update the archived status in the equipment array
           const gear = this.equipment.find((item) => item.id === id);
@@ -666,7 +666,7 @@ export default {
     },
     updateGear() {
       axios
-        .put(`http://localhost:3000/gear/${this.editGear.id}`, this.editGear)
+        .put(`http://localhost:3001/gear/${this.editGear.id}`, this.editGear)
         .then(() => {
           this.fetchEquipment(); // Refetch equipment to update the UI
           this.showEditModal = false;
@@ -681,7 +681,7 @@ export default {
     },
     confirmDeleteGear(id) {
       axios
-        .delete(`http://localhost:3000/gear/${id}`)
+        .delete(`http://localhost:3001/gear/${id}`)
         .then(() => {
           // Remove the deleted item from the equipment array
           this.equipment = this.equipment.filter((item) => item.id !== id);
@@ -695,7 +695,7 @@ export default {
     openGearDetailsModal(item) {
       this.selectedGear = item;
       axios
-        .get(`http://localhost:3000/maintenance?gear_id=${item.id}`)
+        .get(`http://localhost:3001/maintenance?gear_id=${item.id}`)
         .then((response) => {
           this.maintenanceRecords = response.data.data.filter(
             (record) => record.gear_id === item.id

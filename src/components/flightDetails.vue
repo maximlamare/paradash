@@ -188,11 +188,11 @@ export default {
     async confirmDeleteFlight() {
       try {
         await axios.delete(
-          `http://localhost:3000/delete-flight/${this.flight.id}`
+          `http://localhost:3001/delete-flight/${this.flight.id}`
         );
         // Delete the associated IGC file if it exists
         if (this.flight.igcFilePath) {
-          await axios.delete(`http://localhost:3002/delete-igc-file`, {
+          await axios.delete(`http://localhost:3001/delete-igc-file`, {
             data: { filePath: this.flight.igcFilePath },
           });
         }
@@ -218,7 +218,7 @@ export default {
       if (this.flight.igcFilePath) {
         try {
           const response = await fetch(
-            `http://localhost:3002/read-igc?filePath=${encodeURIComponent(
+            `http://localhost:3001/read-igc?filePath=${encodeURIComponent(
               this.flight.igcFilePath
             )}`
           );
@@ -254,7 +254,7 @@ export default {
     },
     async fetchGlider() {
       await axios
-        .get("http://localhost:3000/gear")
+        .get("http://localhost:3001/gear")
         .then((response) => {
           const allGear = response.data.data;
           const matchingGlider = allGear.find(

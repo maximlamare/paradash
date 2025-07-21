@@ -292,7 +292,7 @@ export default {
         const formData = new FormData();
         formData.append("igcFile", file);
 
-        fetch("http://localhost:3002/uploadFile", {
+        fetch("http://localhost:3001/uploadFile", {
           method: "POST",
           body: formData,
         })
@@ -317,7 +317,7 @@ export default {
         const igcContent = e.target.result;
         try {
           const response = await axios.get(
-            "http://localhost:3000/launch_sites"
+            "http://localhost:3001/launch_sites"
           );
           this.sites = response.data; // Assuming response.data contains the array of objects
 
@@ -332,7 +332,7 @@ export default {
           this.flight.igcSerial = result.security;
 
           // Check if file already exists in the database
-          axios.get("http://localhost:3000/items").then((response) => {
+          axios.get("http://localhost:3001/items").then((response) => {
             const existingSerials = [];
             response.data.data.forEach((item) => {
               existingSerials.push(item.igcSerial);
@@ -409,7 +409,7 @@ export default {
     },
     fetchSettings() {
       axios
-        .get("http://localhost:3002/get-settings")
+        .get("http://localhost:3001/get-settings")
         .then((response) => {
           this.categories = response.data.categories;
           this.types = response.data.types;
@@ -426,7 +426,7 @@ export default {
     },
     fetchGliders() {
       axios
-        .get("http://localhost:3000/gear")
+        .get("http://localhost:3001/gear")
         .then((response) => {
           this.gliders = response.data.data.filter(
             (item) => item.gear_type === "glider" && item.archived === 0
@@ -437,7 +437,7 @@ export default {
         });
     },
     fetchFlightsInfo() {
-      axios.get("http://localhost:3000/items").then((response) => {
+      axios.get("http://localhost:3001/items").then((response) => {
         // Fetch starting locations from the database
         const allStarts = [];
         response.data.data.forEach((item) => {
@@ -462,7 +462,7 @@ export default {
         ]);
         const usedCountryCodes = Array.from(uniqueCountries).sort();
         axios
-          .get("http://localhost:3000/fetchCountryCodes")
+          .get("http://localhost:3001/fetchCountryCodes")
           .then((response) => {
             const filteredCountryCodes = response.data.data.filter((item) =>
               usedCountryCodes.includes(item.Code)
@@ -498,7 +498,7 @@ export default {
 
       // Check if a flight with the same date and start time already exists
       axios
-        .get("http://localhost:3000/items")
+        .get("http://localhost:3001/items")
         .then((response) => {
           const existingFlights = response.data.data;
           const duplicateFlight = existingFlights.find(
@@ -516,7 +516,7 @@ export default {
 
           // If no duplicate flight, proceed to save the flight
           axios
-            .post("http://localhost:3000/save-flight", flightToSave)
+            .post("http://localhost:3001/save-flight", flightToSave)
             .then(() => {
               this.uploadSuccess = true;
             })
@@ -531,7 +531,7 @@ export default {
     },
     async deleteFile(currentFilePath) {
       try {
-        await axios.delete(`http://localhost:3002/delete-igc-file`, {
+        await axios.delete(`http://localhost:3001/delete-igc-file`, {
           data: { filePath: currentFilePath },
         });
       } catch (error) {

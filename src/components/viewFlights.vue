@@ -114,7 +114,7 @@ export default {
   methods: {
     fetchAllFlights() {
       axios
-        .get("http://localhost:3000/items")
+        .get("http://localhost:3001/items")
         .then((response) => {
           this.flights = response.data.data;
           // Sort flights by date in descending order
@@ -135,7 +135,7 @@ export default {
     },
     fetchFilters() {
       axios
-        .get("http://localhost:3002/get-settings")
+        .get("http://localhost:3001/get-settings")
         .then((response) => {
           this.categories = response.data.categories;
           this.selectedCategories = this.categories.slice();

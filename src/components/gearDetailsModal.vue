@@ -170,7 +170,7 @@ export default {
   methods: {
     toggleEditMode() {
       axios
-        .get(`http://localhost:3000/maintenance?gear_id=${this.gear.id}`)
+        .get(`http://localhost:3001/maintenance?gear_id=${this.gear.id}`)
         .then((response) => {
           this.editableRecords = response.data.data.filter(
             (record) => record.gear_id === this.gear.id
@@ -188,7 +188,7 @@ export default {
       this.recordsToDelete.forEach((record) => {
         // Delete the record from the database (or trigger parent component action)
         axios
-          .delete(`http://localhost:3000/maintenance/${record.id}`)
+          .delete(`http://localhost:3001/maintenance/${record.id}`)
           .then(() => {
             this.$emit("update-records", record.id);
           })
@@ -220,7 +220,7 @@ export default {
     saveMaintenance() {
       // Add new maintenance record
       axios
-        .post("http://localhost:3000/maintenance", this.maintenance)
+        .post("http://localhost:3001/maintenance", this.maintenance)
         .then(() => {
           this.showMaintenanceModal = false; // Close the modal
           this.resetMaintenanceForm(); // Clear the form

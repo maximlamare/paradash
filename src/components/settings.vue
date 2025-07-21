@@ -145,7 +145,7 @@ export default {
   methods: {
     saveSettings() {
       axios
-        .post("http://localhost:3002/save-settings", {
+        .post("http://localhost:3001/save-settings", {
           categories: this.categories,
           types: this.types,
           gliderWarningDuration: this.gliderWarningDuration,
@@ -175,7 +175,7 @@ export default {
     },
     fetchSettings() {
       axios
-        .get("http://localhost:3002/get-settings")
+        .get("http://localhost:3001/get-settings")
         .then((response) => {
           this.categories = response.data.categories;
           this.types = response.data.types;
@@ -189,7 +189,7 @@ export default {
     },
     fetchTables() {
       axios
-        .get("http://localhost:3000/get-tables")
+        .get("http://localhost:3001/get-tables")
         .then((response) => {
           this.tables = response.data.tables;
           if (this.tables.length > 0) {
@@ -203,7 +203,7 @@ export default {
     exportDb() {
       console.log("Exporting database");
       axios
-        .get("http://localhost:3000/export-database", {
+        .get("http://localhost:3001/export-database", {
           responseType: "blob",
         })
         .then((response) => {
@@ -221,7 +221,7 @@ export default {
     },
     exportCsv() {
       axios
-        .get("http://localhost:3000/export-csv", {
+        .get("http://localhost:3001/export-csv", {
           params: { table: this.selectedTable },
           responseType: "blob",
         })
@@ -254,7 +254,7 @@ export default {
             formData.append("dbFile", file);
 
             axios
-              .post("http://localhost:3000/upload-db", formData, {
+              .post("http://localhost:3001/upload-db", formData, {
                 headers: {
                   "Content-Type": "multipart/form-data",
                 },
