@@ -56,6 +56,7 @@ import axios from "axios";
 import VueApexCharts from "vue3-apexcharts";
 
 export default {
+  name: "DashboardView",
   components: {
     apexchart: VueApexCharts,
   },

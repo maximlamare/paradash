@@ -56,7 +56,7 @@
             id="startLocation"
             class="modal-dropdown w-1/2"
           >
-            <option v-for="location in startLocations" :value="location">
+            <option v-for="location in startLocations" :key="location" :value="location">
               {{ location }}
             </option>
             <option value="add-new">Add new location</option>
@@ -100,7 +100,7 @@
             id="landLocations"
             class="modal-dropdown w-1/2"
           >
-            <option v-for="location in landLocations" :value="location">
+            <option v-for="location in landLocations" :key="location" :value="location">
               {{ location }}
             </option>
             <option value="add-new">Add new location</option>
@@ -251,7 +251,7 @@
 
 <script>
 import { processIGCContent } from "@/utils/igcProcessor";
-import axios, { all } from "axios";
+import axios from "axios";
 
 export default {
   data() {
