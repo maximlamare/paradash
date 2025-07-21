@@ -2,8 +2,11 @@
 // Centralized configuration for all API endpoints
 
 const API_CONFIG = {
-  // Base URL for the main server
-  BASE_URL: 'http://localhost:3001',
+  // Base URL from environment variables, fallback to development default
+  BASE_URL: process.env.VUE_APP_API_BASE_URL || 'http://localhost:3001',
+  
+  // Environment information
+  ENVIRONMENT: process.env.NODE_ENV || 'development',
   
   // Legacy URLs (kept for reference, but not used)
   LEGACY_DATABASE_URL: 'http://localhost:3000',
