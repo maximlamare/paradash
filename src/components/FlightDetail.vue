@@ -205,14 +205,14 @@
       <!-- Action Buttons at Bottom -->
       <div class="bottom-actions">
         <button @click="editFlight" class="action-btn edit-btn">
-          ✏️ Edit Flight
+          Edit Flight
         </button>
         <button
           @click="deleteFlight"
           class="action-btn delete-btn"
           :disabled="deleting"
         >
-          {{ deleting ? "Deleting..." : "🗑️ Delete Flight" }}
+          {{ deleting ? "Deleting..." : "Delete Flight" }}
         </button>
       </div>
 
@@ -402,12 +402,15 @@
                 v-if="!editForm.igcFilePath || newIgcFile"
                 class="igc-upload"
               >
-                <input
-                  type="file"
-                  accept=".igc"
-                  @change="handleIgcFileSelect"
-                  class="file-input"
-                />
+                <label>
+                  <input
+                    type="file"
+                    accept=".igc"
+                    @change="handleIgcFileSelect"
+                    class="file-input"
+                  />
+                  Choose IGC File
+                </label>
                 <p class="upload-hint">Upload a new IGC file (optional)</p>
               </div>
 
@@ -984,17 +987,19 @@ export default {
         Object.assign(this.flight, this.editForm);
 
         this.showEditModal = false;
+        this.newIgcFile = null;
         this.successMessage = "Flight updated successfully";
         setTimeout(() => (this.successMessage = ""), 3000);
 
         // Reload track data if IGC file changed
-        if (this.newIgcFile && this.flight.igcFilePath) {
+        if (igcData && this.flight.igcFilePath) {
           await this.loadTrackData();
         }
       } catch (error) {
-        this.errorMessage = "Failed to update flight";
+        // Show the actual error message (including duplicate errors)
+        this.errorMessage = error.message || "Failed to update flight";
         console.error("Error updating flight:", error);
-        setTimeout(() => (this.errorMessage = ""), 3000);
+        setTimeout(() => (this.errorMessage = ""), 5000);
       }
     },
 
@@ -1003,25 +1008,131 @@ export default {
 
       this.uploadingIgc = true;
       try {
-        const formData = new FormData();
-        formData.append("igcFile", this.newIgcFile);
+        const platform = Capacitor.getPlatform();
+        const isNative = platform === "android" || platform === "ios";
 
-        const response = await fetch("http://localhost:3001/api/igc/upload", {
-          method: "POST",
-          body: formData,
-        });
+        if (isNative) {
+          // Native platform: Parse locally and store with Filesystem
+          const fileContent = await this.readFileAsText(this.newIgcFile);
+          const igcData = this.parseIGCContent(fileContent);
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to upload IGC file");
+          // Check if this IGC file already exists for another flight
+          const existingFlights = await flightOperations.getAllFlights();
+          const duplicate = existingFlights.find(f => 
+            f.id !== this.flight.id && // Not the current flight
+            f.igcFilePath === this.newIgcFile.name
+          );
+
+          if (duplicate) {
+            throw new Error(`This IGC file is already used by flight on ${duplicate.date}`);
+          }
+
+          // Store IGC file in app's documents directory
+          const fileName = this.newIgcFile.name;
+          await Filesystem.writeFile({
+            path: `igc/${fileName}`,
+            data: fileContent,
+            directory: Directory.Documents,
+            encoding: Encoding.UTF8,
+            recursive: true,
+          });
+
+          return {
+            filename: fileName,
+            igcSerial: igcData.gliderSerial || "",
+            ...igcData,
+          };
+        } else {
+          // Web platform: Use server API
+          const formData = new FormData();
+          formData.append("igcFile", this.newIgcFile);
+
+          const response = await fetch("http://localhost:3001/api/igc/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            // Handle duplicate error specifically
+            if (response.status === 409) {
+              throw new Error(result.message || "This IGC file already exists");
+            }
+            throw new Error(result.error || "Failed to upload IGC file");
+          }
+
+          return {
+            filename: result.filePath,
+            igcSerial: result.igcData?.gliderSerial || "",
+            ...result.igcData,
+          };
         }
-
-        const result = await response.json();
-        return result.igcData;
       } catch (error) {
         throw error;
       } finally {
         this.uploadingIgc = false;
+      }
+    },
+
+    // Helper to read file as text
+    readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsText(file);
+      });
+    },
+
+    // Parse IGC content client-side
+    parseIGCContent(igcContent) {
+      try {
+        const flight = IGCParser.parse(igcContent);
+
+        if (!flight || !flight.fixes || flight.fixes.length === 0) {
+          throw new Error("Invalid IGC file or no GPS fixes found");
+        }
+
+        const firstFix = flight.fixes[0];
+        const lastFix = flight.fixes[flight.fixes.length - 1];
+
+        let startTime, duration, flightDate;
+
+        if (firstFix.timestamp) {
+          const startDate = new Date(firstFix.timestamp);
+          const endDate = new Date(lastFix.timestamp);
+
+          startTime = `${String(startDate.getHours()).padStart(2, "0")}:${String(
+            startDate.getMinutes()
+          ).padStart(2, "0")}`;
+          flightDate = startDate.toISOString().split("T")[0];
+
+          const durationMs = endDate.getTime() - startDate.getTime();
+          const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+          const durationMins = Math.floor(
+            (durationMs % (1000 * 60 * 60)) / (1000 * 60)
+          );
+          duration = `${String(durationHours).padStart(2, "0")}:${String(
+            durationMins
+          ).padStart(2, "0")}`;
+        } else {
+          flightDate = flight.date || new Date().toISOString().split("T")[0];
+          startTime = "00:00";
+          duration = "00:00";
+        }
+
+        return {
+          startTime,
+          duration,
+          date: flightDate,
+          pilotName: flight.pilot || "",
+          gliderType: flight.gliderType || "",
+          gliderSerial: flight.gliderSerial || "",
+          totalFixes: flight.fixes.length,
+        };
+      } catch (error) {
+        throw new Error(`Failed to parse IGC file: ${error.message}`);
       }
     },
 
@@ -1594,24 +1705,63 @@ export default {
 
 .form-group label {
   font-size: 0.9rem;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 6px;
+  display: block;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
-  font-size: 0.95rem;
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background-color: white;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #549f74;
+  box-shadow: 0 0 0 3px rgba(84, 159, 116, 0.15);
+}
+
+.form-group select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23495057' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
 }
 
 /* IGC Management Styles */
 .igc-management {
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
   padding: 16px;
   background-color: #f9f9f9;
 }
 
 .current-igc {
   margin-bottom: 12px;
+}
+
+.current-igc .igc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.current-igc .igc-info span {
+  word-break: break-all;
+  font-size: 0.9rem;
+  color: #555;
 }
 
 .igc-info {
@@ -1640,20 +1790,49 @@ export default {
 
 .igc-upload {
   margin-bottom: 12px;
+  text-align: center;
 }
 
-.file-input {
-  margin-bottom: 8px;
+.igc-upload .file-input {
+  display: none;
+}
+
+.igc-upload label {
+  display: inline-block;
+  padding: 10px 20px;
+  background: #549f74;
+  color: white;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.igc-upload label:hover {
+  background: #448060;
 }
 
 .upload-hint {
-  margin: 0;
+  margin: 10px 0 0 0;
   font-size: 0.85rem;
   color: #666;
-  font-style: italic;
 }
 
 .new-igc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.new-igc span {
+  word-break: break-all;
+  font-size: 0.9rem;
+  color: #549f74;
+  font-weight: 500;
+}
+
+.old-igc-info {
   display: flex;
   align-items: center;
   justify-content: space-between;

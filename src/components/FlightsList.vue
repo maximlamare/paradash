@@ -33,8 +33,7 @@
               <td class="flight-date">{{ formatDate(flight.date) }}</td>
               <td class="flight-time">{{ flight.flightTime }}</td>
               <td class="flight-takeoff">
-                <span class="location-name">{{ flight.takeoffLocation }}</span>
-                <span class="country-code">{{ flight.takeoffCountryCode }}</span>
+                {{ flight.takeoffLocation }}<span v-if="flight.takeoffCountryCode">, {{ flight.takeoffCountryCode }}</span>
               </td>
             </tr>
           </tbody>
@@ -350,9 +349,7 @@ export default {
 }
 
 .flight-takeoff {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  font-size: 0.9rem;
 }
 
 .flight-row {
