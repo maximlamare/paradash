@@ -431,65 +431,195 @@ export default {
       }
     };
 
+    // Parse IGC content and extract flight data (client-side)
+    const parseIGCContent = (igcContent, originalName) => {
+      try {
+        const flight = IGCParser.parse(igcContent);
+
+        if (!flight || !flight.fixes || flight.fixes.length === 0) {
+          throw new Error("Invalid IGC file or no GPS fixes found");
+        }
+
+        const firstFix = flight.fixes[0];
+        const lastFix = flight.fixes[flight.fixes.length - 1];
+
+        let startTime, endTime, flightDate, duration;
+
+        if (firstFix.timestamp) {
+          const startDate = new Date(firstFix.timestamp);
+          const endDate = new Date(lastFix.timestamp);
+
+          startTime = `${String(startDate.getHours()).padStart(2, "0")}:${String(
+            startDate.getMinutes()
+          ).padStart(2, "0")}`;
+          endTime = `${String(endDate.getHours()).padStart(2, "0")}:${String(
+            endDate.getMinutes()
+          ).padStart(2, "0")}`;
+          flightDate = startDate.toISOString().split("T")[0];
+
+          const durationMs = endDate.getTime() - startDate.getTime();
+          const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+          const durationMins = Math.floor(
+            (durationMs % (1000 * 60 * 60)) / (1000 * 60)
+          );
+          duration = `${String(durationHours).padStart(2, "0")}:${String(
+            durationMins
+          ).padStart(2, "0")}`;
+        } else if (firstFix.time) {
+          const timeToString = (timeObj) => {
+            const hours = timeObj.hours || timeObj.hour || 0;
+            const minutes = timeObj.minutes || timeObj.minute || 0;
+            return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+              2,
+              "0"
+            )}`;
+          };
+
+          startTime = timeToString(firstFix.time);
+          endTime = timeToString(lastFix.time);
+
+          const startMinutes =
+            (firstFix.time.hours || 0) * 60 + (firstFix.time.minutes || 0);
+          const endMinutes =
+            (lastFix.time.hours || 0) * 60 + (lastFix.time.minutes || 0);
+          const durationTotalMinutes = Math.max(0, endMinutes - startMinutes);
+          const durationHrs = Math.floor(durationTotalMinutes / 60);
+          const durationMins = durationTotalMinutes % 60;
+          duration = `${String(durationHrs).padStart(2, "0")}:${String(
+            durationMins
+          ).padStart(2, "0")}`;
+
+          flightDate = flight.date || new Date().toISOString().split("T")[0];
+        } else {
+          throw new Error("Unable to parse time information from IGC file");
+        }
+
+        return {
+          startTime,
+          endTime,
+          duration,
+          date: flightDate,
+          pilotName: flight.pilot || "",
+          gliderType: flight.gliderType || "",
+          gliderSerial: flight.gliderSerial || "",
+          totalFixes: flight.fixes.length,
+          valid: true,
+        };
+      } catch (error) {
+        console.error("Error parsing IGC file:", error);
+        throw new Error(`Failed to parse IGC file: ${error.message}`);
+      }
+    };
+
     const uploadIGCFile = async (file) => {
       try {
         console.log("Starting IGC file upload:", file.name, "Size:", file.size);
         igcUploadError.value = "";
-        const formData = new FormData();
-        formData.append("igcFile", file);
 
-        console.log(
-          "Sending request to:",
-          "http://localhost:3001/api/igc/upload"
-        );
-        const response = await fetch("http://localhost:3001/api/igc/upload", {
-          method: "POST",
-          body: formData,
-        });
+        if (isNativePlatform.value) {
+          // Native platform: Parse locally and store with Filesystem
+          const fileContent = await readFileAsText(file);
+          const igcData = parseIGCContent(fileContent, file.name);
 
-        console.log("Response status:", response.status, response.statusText);
-        const result = await response.json();
-        console.log("Upload result:", result);
+          // Store IGC file in app's documents directory
+          const fileName = `${Date.now()}_${file.name}`;
+          await Filesystem.writeFile({
+            path: `igc/${fileName}`,
+            data: fileContent,
+            directory: Directory.Documents,
+            encoding: Encoding.UTF8,
+            recursive: true,
+          });
 
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to upload IGC file");
-        }
+          console.log("IGC file stored locally:", fileName);
 
-        console.log("IGC file uploaded successfully:", result.filePath);
+          // Store IGC data
+          uploadedIGC.value = {
+            file: file,
+            originalName: file.name,
+            filePath: fileName,
+            startTime: igcData.startTime,
+            duration: igcData.duration,
+            date: igcData.date,
+            pilotName: igcData.pilotName,
+            gliderType: igcData.gliderType,
+            gliderSerial: igcData.gliderSerial,
+            totalFixes: igcData.totalFixes,
+            fileExists: false,
+            existingFiles: [],
+            igcContent: fileContent, // Store content for native
+          };
 
-        // Store IGC data
-        uploadedIGC.value = {
-          file: file,
-          originalName: result.originalName,
-          filePath: result.filePath,
-          startTime: result.igcData.startTime,
-          duration: result.igcData.duration,
-          date: result.igcData.date,
-          pilotName: result.igcData.pilotName,
-          gliderType: result.igcData.gliderType,
-          gliderSerial: result.igcData.gliderSerial,
-          totalFixes: result.igcData.totalFixes,
-          fileExists: result.fileExists,
-          existingFiles: result.existingFiles || [],
-        };
+          // Auto-populate form fields
+          if (igcData.date) {
+            flight.value.date = igcData.date;
+          }
+          if (igcData.startTime) {
+            flight.value.startTime = igcData.startTime;
+          }
+          if (igcData.duration) {
+            const [hours, minutes] = igcData.duration.split(":").map(Number);
+            durationHours.value = hours;
+            durationMinutes.value = minutes;
+            durationHoursInput.value = hours.toString();
+            durationMinutesInput.value = minutes.toString();
+          }
+        } else {
+          // Web platform: Use server API
+          const formData = new FormData();
+          formData.append("igcFile", file);
 
-        // Auto-populate form fields
-        if (result.igcData.date) {
-          flight.value.date = result.igcData.date;
-        }
+          console.log(
+            "Sending request to:",
+            "http://localhost:3001/api/igc/upload"
+          );
+          const response = await fetch("http://localhost:3001/api/igc/upload", {
+            method: "POST",
+            body: formData,
+          });
 
-        if (result.igcData.startTime) {
-          flight.value.startTime = result.igcData.startTime;
-        }
+          console.log("Response status:", response.status, response.statusText);
+          const result = await response.json();
+          console.log("Upload result:", result);
 
-        if (result.igcData.duration) {
-          const [hours, minutes] = result.igcData.duration
-            .split(":")
-            .map(Number);
-          durationHours.value = hours;
-          durationMinutes.value = minutes;
-          durationHoursInput.value = hours.toString();
-          durationMinutesInput.value = minutes.toString();
+          if (!response.ok) {
+            throw new Error(result.error || "Failed to upload IGC file");
+          }
+
+          console.log("IGC file uploaded successfully:", result.filePath);
+
+          // Store IGC data
+          uploadedIGC.value = {
+            file: file,
+            originalName: result.originalName,
+            filePath: result.filePath,
+            startTime: result.igcData.startTime,
+            duration: result.igcData.duration,
+            date: result.igcData.date,
+            pilotName: result.igcData.pilotName,
+            gliderType: result.igcData.gliderType,
+            gliderSerial: result.igcData.gliderSerial,
+            totalFixes: result.igcData.totalFixes,
+            fileExists: result.fileExists,
+            existingFiles: result.existingFiles || [],
+          };
+
+          // Auto-populate form fields
+          if (result.igcData.date) {
+            flight.value.date = result.igcData.date;
+          }
+          if (result.igcData.startTime) {
+            flight.value.startTime = result.igcData.startTime;
+          }
+          if (result.igcData.duration) {
+            const [hours, minutes] = result.igcData.duration
+              .split(":")
+              .map(Number);
+            durationHours.value = hours;
+            durationMinutes.value = minutes;
+            durationHoursInput.value = hours.toString();
+            durationMinutesInput.value = minutes.toString();
+          }
         }
       } catch (error) {
         console.error("IGC upload error:", error);
@@ -516,15 +646,38 @@ export default {
       }
     };
 
+    // Helper function to read file as text
+    const readFileAsText = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(new Error("Failed to read file"));
+        reader.readAsText(file);
+      });
+    };
+
     const removeIGCFile = async () => {
       try {
         if (uploadedIGC.value.filePath) {
-          await fetch(
-            `http://localhost:3001/api/igc/${uploadedIGC.value.filePath}`,
-            {
-              method: "DELETE",
+          if (isNativePlatform.value) {
+            // Native platform: Delete from local filesystem
+            try {
+              await Filesystem.deleteFile({
+                path: `igc/${uploadedIGC.value.filePath}`,
+                directory: Directory.Documents,
+              });
+            } catch (e) {
+              console.log("File may not exist:", e);
             }
-          );
+          } else {
+            // Web platform: Delete from server
+            await fetch(
+              `http://localhost:3001/api/igc/${uploadedIGC.value.filePath}`,
+              {
+                method: "DELETE",
+              }
+            );
+          }
         }
       } catch (error) {
         console.error("Error removing IGC file:", error);
@@ -1014,22 +1167,6 @@ export default {
 /* IGC Upload Styles */
 .igc-upload-area {
   min-height: 60px;
-}
-
-.native-igc-notice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 15px;
-  background: #f0f7f3;
-  border: 1px solid #c3e6cb;
-  border-radius: 8px;
-  color: #549f74;
-  font-size: 0.9rem;
-}
-
-.notice-icon {
-  font-size: 1rem;
 }
 
 .upload-input-section {
