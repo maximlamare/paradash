@@ -135,6 +135,7 @@
 
 <script>
 import { formatDateShort } from "../utils/dateUtils.js";
+import { flightOperations } from "../database/database.js";
 
 export default {
   name: "FlightsList",
@@ -266,12 +267,7 @@ export default {
       this.loading = true;
 
       try {
-        const response = await fetch("http://localhost:3001/api/flights");
-        if (!response.ok) {
-          throw new Error("Failed to fetch flights");
-        }
-        const data = await response.json();
-        this.flights = data.data || [];
+        this.flights = await flightOperations.getAllFlights();
       } catch (error) {
         console.error("Error loading flights:", error);
         this.flights = [];

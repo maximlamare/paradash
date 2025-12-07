@@ -1,0 +1,498 @@
+// Capacitor SQLite Database Service for Native Platforms
+// This module handles all database operations using @capacitor-community/sqlite
+// for Android/iOS native apps
+
+import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacitor-community/sqlite';
+import { Capacitor } from '@capacitor/core';
+
+// Database configuration
+const DB_NAME = 'paradash';
+const DB_VERSION = 1;
+
+// SQLite connection instance
+let sqlite = null;
+let db = null;
+let isInitialized = false;
+
+// Database schema
+const CREATE_GEAR_TABLE = `
+  CREATE TABLE IF NOT EXISTS gear (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    manufacturer TEXT NOT NULL,
+    type TEXT NOT NULL,
+    model TEXT NOT NULL,
+    manufacturing_date TEXT,
+    purchase_date TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`;
+
+const CREATE_FLIGHTS_TABLE = `
+  CREATE TABLE IF NOT EXISTS flights (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT,
+    type TEXT,
+    date TEXT,
+    glider INTEGER,
+    flightStart TEXT,
+    flightEnd TEXT,
+    takeoffLocation TEXT,
+    takeoffCountryCode TEXT,
+    landingLocation TEXT,
+    landingCountryCode TEXT,
+    flightTime TEXT,
+    trackDistance REAL,
+    straightDistance REAL,
+    maxAltitude INTEGER,
+    links TEXT,
+    comments TEXT,
+    igcFilePath TEXT,
+    igcSerial TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (glider) REFERENCES gear(id)
+  )
+`;
+
+const CREATE_MAINTENANCE_TABLE = `
+  CREATE TABLE IF NOT EXISTS gear_maintenance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gear_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT,
+    attachment_path TEXT,
+    attachment_filename TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (gear_id) REFERENCES gear(id) ON DELETE CASCADE
+  )
+`;
+
+// Initialize the database connection
+export async function initializeDatabase() {
+  if (isInitialized && db) {
+    return db;
+  }
+
+  try {
+    const platform = Capacitor.getPlatform();
+    console.log(`Initializing Capacitor SQLite on platform: ${platform}`);
+
+    // Create SQLite connection
+    sqlite = new SQLiteConnection(CapacitorSQLite);
+
+    // Check connection consistency (important for Android)
+    const retCC = await sqlite.checkConnectionsConsistency();
+    const isConn = (await sqlite.isConnection(DB_NAME, false)).result;
+
+    if (retCC.result && isConn) {
+      db = await sqlite.retrieveConnection(DB_NAME, false);
+    } else {
+      db = await sqlite.createConnection(
+        DB_NAME,
+        false,
+        'no-encryption',
+        DB_VERSION,
+        false
+      );
+    }
+
+    // Open the database
+    await db.open();
+    console.log('Database connection opened');
+
+    // Enable foreign keys
+    await db.execute('PRAGMA foreign_keys = ON');
+
+    // Create tables
+    await db.execute(CREATE_GEAR_TABLE);
+    await db.execute(CREATE_FLIGHTS_TABLE);
+    await db.execute(CREATE_MAINTENANCE_TABLE);
+
+    console.log('Database tables created/verified');
+    isInitialized = true;
+
+    return db;
+  } catch (error) {
+    console.error('Error initializing database:', error);
+    throw error;
+  }
+}
+
+// Close database connection
+export async function closeDatabase() {
+  if (db) {
+    try {
+      await sqlite.closeConnection(DB_NAME, false);
+      db = null;
+      isInitialized = false;
+      console.log('Database connection closed');
+    } catch (error) {
+      console.error('Error closing database:', error);
+    }
+  }
+}
+
+// Flight operations
+export const nativeFlightOperations = {
+  // Get all flights with gear information
+  getAllFlights: async () => {
+    try {
+      await initializeDatabase();
+      const query = `
+        SELECT f.*, g.manufacturer, g.model 
+        FROM flights f 
+        LEFT JOIN gear g ON f.glider = g.id 
+        ORDER BY f.date DESC, f.flightStart DESC
+      `;
+      const result = await db.query(query);
+      return result.values || [];
+    } catch (error) {
+      console.error('Error fetching flights:', error);
+      throw error;
+    }
+  },
+
+  // Add new flight
+  add: async (flight) => {
+    try {
+      await initializeDatabase();
+      const {
+        category, type, date, glider, flightStart, flightEnd,
+        takeoffLocation, takeoffCountryCode, landingLocation, landingCountryCode,
+        flightTime, trackDistance, straightDistance, maxAltitude,
+        links, comments, igcFilePath, igcSerial
+      } = flight;
+
+      const query = `
+        INSERT INTO flights (
+          category, type, date, glider, flightStart, flightEnd,
+          takeoffLocation, takeoffCountryCode, landingLocation, landingCountryCode,
+          flightTime, trackDistance, straightDistance, maxAltitude,
+          links, comments, igcFilePath, igcSerial
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      const result = await db.run(query, [
+        category, type, date, glider, flightStart, flightEnd,
+        takeoffLocation, takeoffCountryCode, landingLocation, landingCountryCode,
+        flightTime, trackDistance || null, straightDistance || null, maxAltitude || null,
+        links, comments, igcFilePath, igcSerial
+      ]);
+
+      return { id: result.changes?.lastId, ...flight };
+    } catch (error) {
+      console.error('Error adding flight:', error);
+      throw error;
+    }
+  },
+
+  // Update flight
+  updateFlight: async (id, flight) => {
+    try {
+      await initializeDatabase();
+      const {
+        category, type, date, glider, flightStart, flightEnd,
+        takeoffLocation, takeoffCountryCode, landingLocation, landingCountryCode,
+        flightTime, trackDistance, straightDistance, maxAltitude,
+        links, comments, igcFilePath, igcSerial
+      } = flight;
+
+      const query = `
+        UPDATE flights 
+        SET category = ?, type = ?, date = ?, glider = ?, flightStart = ?, flightEnd = ?, 
+            takeoffLocation = ?, takeoffCountryCode = ?, landingLocation = ?, landingCountryCode = ?, 
+            flightTime = ?, trackDistance = ?, straightDistance = ?, maxAltitude = ?, 
+            links = ?, comments = ?, igcFilePath = ?, igcSerial = ?, 
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `;
+
+      await db.run(query, [
+        category, type, date, glider, flightStart, flightEnd,
+        takeoffLocation, takeoffCountryCode, landingLocation, landingCountryCode,
+        flightTime, trackDistance || null, straightDistance || null, maxAltitude || null,
+        links, comments, igcFilePath, igcSerial, id
+      ]);
+
+      return { id, ...flight };
+    } catch (error) {
+      console.error('Error updating flight:', error);
+      throw error;
+    }
+  },
+
+  // Delete flight
+  deleteFlight: async (id) => {
+    try {
+      await initializeDatabase();
+      const result = await db.run('DELETE FROM flights WHERE id = ?', [id]);
+      return { deletedId: id, changes: result.changes?.changes || 0 };
+    } catch (error) {
+      console.error('Error deleting flight:', error);
+      throw error;
+    }
+  },
+
+  // Export database - not supported on native, return empty for now
+  exportDatabase: async () => {
+    console.warn('Database export not yet implemented for native platform');
+    return { success: false, message: 'Export not available on mobile' };
+  },
+
+  // Export CSV - not supported on native
+  exportTableAsCSV: async () => {
+    console.warn('CSV export not yet implemented for native platform');
+    return { success: false, message: 'CSV export not available on mobile' };
+  },
+};
+
+// Gear operations
+export const nativeGearOperations = {
+  // Get all gear
+  getAll: async () => {
+    try {
+      await initializeDatabase();
+      const result = await db.query('SELECT * FROM gear ORDER BY type, purchase_date DESC');
+      return result.values || [];
+    } catch (error) {
+      console.error('Error fetching gear:', error);
+      throw error;
+    }
+  },
+
+  // Get all gear with flight statistics
+  getAllWithStats: async () => {
+    try {
+      await initializeDatabase();
+      const query = `
+        SELECT 
+          g.*,
+          CASE 
+            WHEN g.type = 'gliders' THEN COUNT(f.id)
+            ELSE 0
+          END as flight_count,
+          CASE 
+            WHEN g.type = 'gliders' THEN COALESCE(SUM(
+              CASE 
+                WHEN f.flightTime IS NOT NULL AND f.flightTime != '' 
+                THEN (
+                  CAST(substr(f.flightTime, 1, instr(f.flightTime, ':') - 1) AS INTEGER) * 60 +
+                  CAST(substr(f.flightTime, instr(f.flightTime, ':') + 1) AS INTEGER)
+                )
+                ELSE 0
+              END
+            ), 0)
+            ELSE 0
+          END as total_flight_minutes
+        FROM gear g
+        LEFT JOIN flights f ON g.id = f.glider AND g.type = 'gliders'
+        GROUP BY g.id
+        ORDER BY g.type, g.purchase_date DESC
+      `;
+      
+      const result = await db.query(query);
+      const rows = result.values || [];
+
+      // Convert total minutes back to hours:minutes format
+      return rows.map((row) => ({
+        ...row,
+        total_flight_time:
+          row.total_flight_minutes > 0
+            ? `${Math.floor(row.total_flight_minutes / 60)}:${String(
+                row.total_flight_minutes % 60
+              ).padStart(2, '0')}`
+            : '0:00',
+      }));
+    } catch (error) {
+      console.error('Error fetching gear with stats:', error);
+      throw error;
+    }
+  },
+
+  // Get gear by ID
+  getById: async (id) => {
+    try {
+      await initializeDatabase();
+      const result = await db.query('SELECT * FROM gear WHERE id = ?', [id]);
+      return result.values?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching gear by ID:', error);
+      throw error;
+    }
+  },
+
+  // Add new gear
+  add: async (gear) => {
+    try {
+      await initializeDatabase();
+      const { manufacturer, model, type, manufacturing_date, purchase_date } = gear;
+
+      const result = await db.run(
+        `INSERT INTO gear (manufacturer, model, type, manufacturing_date, purchase_date) VALUES (?, ?, ?, ?, ?)`,
+        [manufacturer, model, type, manufacturing_date, purchase_date]
+      );
+
+      const gearId = result.changes?.lastId;
+
+      // Automatically create a purchase maintenance record if purchase_date is provided
+      if (purchase_date && gearId) {
+        await db.run(
+          `INSERT INTO gear_maintenance (gear_id, date, category, description) VALUES (?, ?, ?, ?)`,
+          [gearId, purchase_date, 'Purchase', `Initial purchase of ${manufacturer} ${model}`]
+        );
+      }
+
+      return { id: gearId, ...gear };
+    } catch (error) {
+      console.error('Error adding gear:', error);
+      throw error;
+    }
+  },
+
+  // Update gear
+  update: async (id, gear) => {
+    try {
+      await initializeDatabase();
+      const { manufacturer, model, type, manufacturing_date, purchase_date } = gear;
+
+      await db.run(
+        `UPDATE gear SET manufacturer = ?, model = ?, type = ?, manufacturing_date = ?, purchase_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [manufacturer, model, type, manufacturing_date, purchase_date, id]
+      );
+
+      return { id, ...gear };
+    } catch (error) {
+      console.error('Error updating gear:', error);
+      throw error;
+    }
+  },
+
+  // Delete gear
+  delete: async (id) => {
+    try {
+      await initializeDatabase();
+      const result = await db.run('DELETE FROM gear WHERE id = ?', [id]);
+      return { deletedId: id, changes: result.changes?.changes || 0 };
+    } catch (error) {
+      console.error('Error deleting gear:', error);
+      throw error;
+    }
+  },
+
+  // Toggle active/retired status
+  toggleActive: async (id, isActive) => {
+    try {
+      await initializeDatabase();
+      await db.run(
+        `UPDATE gear SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [isActive ? 1 : 0, id]
+      );
+      return { id, is_active: isActive };
+    } catch (error) {
+      console.error('Error toggling gear active status:', error);
+      throw error;
+    }
+  },
+};
+
+// Maintenance operations
+export const nativeMaintenanceOperations = {
+  // Get all maintenance records
+  getAll: async () => {
+    try {
+      await initializeDatabase();
+      const result = await db.query('SELECT * FROM gear_maintenance ORDER BY date DESC');
+      return result.values || [];
+    } catch (error) {
+      console.error('Error fetching maintenance records:', error);
+      throw error;
+    }
+  },
+
+  // Get maintenance records for a gear item
+  getByGearId: async (gearId) => {
+    try {
+      await initializeDatabase();
+      const result = await db.query(
+        'SELECT * FROM gear_maintenance WHERE gear_id = ? ORDER BY date DESC',
+        [gearId]
+      );
+      return result.values || [];
+    } catch (error) {
+      console.error('Error fetching maintenance by gear ID:', error);
+      throw error;
+    }
+  },
+
+  // Add maintenance record
+  add: async (gearId, maintenance) => {
+    try {
+      await initializeDatabase();
+      const { date, category, description, attachment_path, attachment_filename } = maintenance;
+
+      const result = await db.run(
+        `INSERT INTO gear_maintenance (gear_id, date, category, description, attachment_path, attachment_filename) VALUES (?, ?, ?, ?, ?, ?)`,
+        [gearId, date, category, description, attachment_path, attachment_filename]
+      );
+
+      return {
+        id: result.changes?.lastId,
+        gear_id: gearId,
+        ...maintenance,
+      };
+    } catch (error) {
+      console.error('Error adding maintenance record:', error);
+      throw error;
+    }
+  },
+
+  // Update maintenance record
+  update: async (id, maintenance) => {
+    try {
+      await initializeDatabase();
+      const { date, category, description, attachment_path, attachment_filename } = maintenance;
+
+      await db.run(
+        `UPDATE gear_maintenance SET date = ?, category = ?, description = ?, attachment_path = ?, attachment_filename = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [date, category, description, attachment_path, attachment_filename, id]
+      );
+
+      return { id, ...maintenance };
+    } catch (error) {
+      console.error('Error updating maintenance record:', error);
+      throw error;
+    }
+  },
+
+  // Delete maintenance record
+  delete: async (id) => {
+    try {
+      await initializeDatabase();
+      const result = await db.run('DELETE FROM gear_maintenance WHERE id = ?', [id]);
+      return { deletedId: id, changes: result.changes?.changes || 0 };
+    } catch (error) {
+      console.error('Error deleting maintenance record:', error);
+      throw error;
+    }
+  },
+};
+
+// Check if running on native platform
+export function isNativePlatform() {
+  const platform = Capacitor.getPlatform();
+  return platform === 'android' || platform === 'ios';
+}
+
+export default {
+  initializeDatabase,
+  closeDatabase,
+  isNativePlatform,
+  flightOperations: nativeFlightOperations,
+  gearOperations: nativeGearOperations,
+  maintenanceOperations: nativeMaintenanceOperations,
+};
+

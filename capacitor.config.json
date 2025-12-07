@@ -1,5 +1,25 @@
 {
   "appId": "at.mlamare.paradash",
   "appName": "paraDash",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorSQLite": {
+      "iosDatabaseLocation": "Library/CapacitorDatabase",
+      "iosIsEncryption": false,
+      "iosKeychainPrefix": "paradash",
+      "iosBiometric": {
+        "biometricAuth": false,
+        "biometricTitle": "Biometric login for ParaDash"
+      },
+      "androidIsEncryption": false,
+      "androidBiometric": {
+        "biometricAuth": false,
+        "biometricTitle": "Biometric login for ParaDash"
+      }
+    }
+  },
+  "android": {
+    "allowMixedContent": true,
+    "webContentsDebuggingEnabled": true
+  }
 }

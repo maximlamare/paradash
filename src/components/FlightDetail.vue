@@ -436,7 +436,7 @@
 </template>
 
 <script>
-import { flightOperations } from "../database/database.js";
+import { flightOperations, gearOperations } from "../database/database.js";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatLocationWithCountry as formatLocationWithCountryUtil } from "../utils/countryUtils.js";
@@ -539,15 +539,9 @@ export default {
       this.flightsListLoading = true;
 
       try {
-        const response = await fetch("http://localhost:3001/api/flights");
+        const flights = await flightOperations.getAllFlights();
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch flights list");
-        }
-
-        const data = await response.json();
-        const flights = Array.isArray(data.data) ? [...data.data] : [];
-
+        // Sort by date descending, then by id descending
         flights.sort((a, b) => {
           const dateA = a?.date ? new Date(a.date).getTime() : 0;
           const dateB = b?.date ? new Date(b.date).getTime() : 0;
@@ -576,7 +570,7 @@ export default {
       this.error = "";
 
       try {
-        const flightId = this.$route.params.id;
+        const flightId = parseInt(this.$route.params.id);
 
         if (this.map) {
           this.map.remove();
@@ -585,19 +579,19 @@ export default {
         this.trackData = null;
         this.trackError = "";
 
-        const response = await fetch(
-          `http://localhost:3001/api/flights/${flightId}`
-        );
+        // Get all flights and find the one we need
+        const flights = await flightOperations.getAllFlights();
+        const flight = flights.find(f => f.id === flightId);
 
-        if (!response.ok) {
+        if (!flight) {
           throw new Error("Flight not found");
         }
 
-        const data = await response.json();
-        this.flight = data.data;
+        this.flight = flight;
+        this.flightsList = flights;
         this.updateCurrentFlightIndex();
 
-        // Load track data if IGC file exists
+        // Load track data if IGC file exists (only works on web)
         if (this.flight.igcFilePath) {
           await this.loadTrackData();
         }
@@ -874,9 +868,7 @@ export default {
 
     async loadGear() {
       try {
-        const response = await fetch("http://localhost:3001/api/gear");
-        const data = await response.json();
-        this.gear = data.data || [];
+        this.gear = await gearOperations.getAll();
       } catch (error) {
         console.error("Error loading gear:", error);
       }
