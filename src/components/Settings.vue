@@ -809,21 +809,57 @@ export default {
   box-shadow: 0 0 0 2px rgba(84, 159, 116, 0.25);
 }
 
-/* Button styles inherited from global */
+/* Button styles - matching Choose IGC File button */
+.btn-primary,
 .btn-success {
-  border-color: #549f74;
+  display: inline-block;
+  padding: 10px 20px;
+  background: #549f74;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-.btn-success:hover {
-  border-color: #448060;
+.btn-primary:hover:not(:disabled),
+.btn-success:hover:not(:disabled) {
+  background: #448060;
+}
+
+.btn-primary:active:not(:disabled),
+.btn-success:active:not(:disabled) {
+  background: #3a7055;
+}
+
+.btn-primary:disabled,
+.btn-success:disabled {
+  background: #a8d4bb;
+  cursor: not-allowed;
+}
+
+.btn-large {
+  padding: 12px 24px;
+  font-size: 1rem;
 }
 
 .btn-secondary {
-  border-color: #6c757d;
+  display: inline-block;
+  padding: 10px 20px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-.btn-secondary:hover {
-  border-color: #545b62;
+.btn-secondary:hover:not(:disabled) {
+  background: #545b62;
 }
 
 .settings-actions {
