@@ -35,6 +35,15 @@ temp/*
 .vscode/
 .idea/
 
+# Android build artifacts (keep source, ignore builds)
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
+*.apk
+*.aab
+*.keystore
+
 # Development notes
 CLAUDE.md
 
