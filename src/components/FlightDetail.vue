@@ -441,6 +441,9 @@
 
 <script>
 import { flightOperations, gearOperations } from "../database/database.js";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
+import IGCParser from "igc-parser";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatLocationWithCountry as formatLocationWithCountryUtil } from "../utils/countryUtils.js";
@@ -652,29 +655,109 @@ export default {
 
       try {
         console.log("Loading track data for:", this.flight.igcFilePath);
-        const response = await fetch(
-          `http://localhost:3001/api/igc/track/${this.flight.igcFilePath}`
-        );
+        
+        const platform = Capacitor.getPlatform();
+        const isNative = platform === "android" || platform === "ios";
 
-        if (!response.ok) {
-          throw new Error("Failed to load track data");
+        if (isNative) {
+          // Native platform: Read IGC file from device and parse locally
+          await this.loadTrackDataNative();
+        } else {
+          // Web platform: Use server API
+          await this.loadTrackDataWeb();
         }
 
-        this.trackData = await response.json();
-        console.log("Track data loaded:", this.trackData);
-
         // Initialize map after data is loaded with a small delay
-        this.$nextTick(() => {
-          setTimeout(() => {
-            this.initializeMap();
-          }, 100);
-        });
+        if (this.trackData && this.trackData.trackPoints) {
+          this.$nextTick(() => {
+            setTimeout(() => {
+              this.initializeMap();
+            }, 100);
+          });
+        }
       } catch (error) {
         console.error("Error loading track data:", error);
         this.trackError = "Failed to load flight track";
       } finally {
         this.loadingTrack = false;
       }
+    },
+
+    async loadTrackDataNative() {
+      try {
+        // Try to read from Documents/igc directory
+        const result = await Filesystem.readFile({
+          path: `igc/${this.flight.igcFilePath}`,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,
+        });
+
+        const igcContent = result.data;
+        const flight = IGCParser.parse(igcContent);
+
+        if (!flight || !flight.fixes || flight.fixes.length === 0) {
+          throw new Error("Invalid IGC file or no GPS fixes found");
+        }
+
+        // Extract track points with coordinates and altitude
+        const trackPoints = flight.fixes.map((fix) => ({
+          latitude: fix.latitude,
+          longitude: fix.longitude,
+          altitude: fix.pressureAltitude || fix.gpsAltitude || 0,
+          timestamp: fix.timestamp,
+        }));
+
+        // Calculate bounds for map centering
+        const latitudes = trackPoints.map((point) => point.latitude);
+        const longitudes = trackPoints.map((point) => point.longitude);
+        const altitudes = trackPoints.map((point) => point.altitude);
+
+        const bounds = {
+          north: Math.max(...latitudes),
+          south: Math.min(...latitudes),
+          east: Math.max(...longitudes),
+          west: Math.min(...longitudes),
+          maxAltitude: Math.max(...altitudes),
+          minAltitude: Math.min(...altitudes),
+        };
+
+        // Calculate center point
+        const center = {
+          latitude: (bounds.north + bounds.south) / 2,
+          longitude: (bounds.east + bounds.west) / 2,
+        };
+
+        this.trackData = {
+          trackPoints,
+          bounds,
+          center,
+          totalPoints: trackPoints.length,
+          flightInfo: {
+            pilot: flight.pilot || "",
+            gliderType: flight.gliderType || "",
+            gliderSerial: flight.gliderSerial || "",
+          },
+        };
+
+        console.log("Track data loaded (native):", this.trackData);
+      } catch (error) {
+        console.error("Error reading IGC file on native:", error);
+        // File might not exist locally, show appropriate message
+        this.trackError = "IGC file not available on device";
+      }
+    },
+
+    async loadTrackDataWeb() {
+      const response = await fetch(
+        `http://localhost:3001/api/igc/track/${this.flight.igcFilePath}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load track data");
+      }
+
+      this.trackData = await response.json();
+      console.log("Track data loaded (web):", this.trackData);
     },
 
     initializeMap() {
@@ -701,10 +784,12 @@ export default {
 
       // Add OpenTopoMap tiles
       L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-        attribution:
-          "Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)",
+        attribution: "© OpenTopoMap",
         maxZoom: 17,
       }).addTo(this.map);
+
+      // Collapse attribution on mobile
+      this.map.attributionControl.setPrefix("");
 
       // Create polyline from track points
       const trackLine = this.trackData.trackPoints.map((point) => [
