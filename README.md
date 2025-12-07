@@ -23,7 +23,7 @@ ParaDash is a modern, full-featured flight tracking application designed for par
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd paradash2
+   cd paradash
    ```
 
 2. **Install dependencies**
