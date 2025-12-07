@@ -521,8 +521,8 @@ export default {
           const fileContent = await readFileAsText(file);
           const igcData = parseIGCContent(fileContent, file.name);
 
-          // Store IGC file in app's documents directory
-          const fileName = `${Date.now()}_${file.name}`;
+          // Store IGC file in app's documents directory (use original filename)
+          const fileName = file.name;
           await Filesystem.writeFile({
             path: `igc/${fileName}`,
             data: fileContent,

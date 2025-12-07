@@ -1016,18 +1016,20 @@ export default {
           const fileContent = await this.readFileAsText(this.newIgcFile);
           const igcData = this.parseIGCContent(fileContent);
 
-          // Check if this IGC file already exists for another flight
+          // Check if this IGC file already exists for another flight based on date and start time
           const existingFlights = await flightOperations.getAllFlights();
           const duplicate = existingFlights.find(f => 
             f.id !== this.flight.id && // Not the current flight
-            f.igcFilePath === this.newIgcFile.name
+            f.date === igcData.date &&
+            f.flightStart === igcData.startTime &&
+            f.igcFilePath // Has an IGC file
           );
 
           if (duplicate) {
-            throw new Error(`This IGC file is already used by flight on ${duplicate.date}`);
+            throw new Error(`A flight with the same IGC data already exists (${duplicate.date} at ${duplicate.flightStart})`);
           }
 
-          // Store IGC file in app's documents directory
+          // Store IGC file in app's documents directory (use original filename)
           const fileName = this.newIgcFile.name;
           await Filesystem.writeFile({
             path: `igc/${fileName}`,
