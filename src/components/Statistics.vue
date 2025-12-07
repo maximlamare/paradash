@@ -206,7 +206,7 @@
     </div>
 
     <!-- Flight Time Over Time Chart -->
-    <div class="card flight-time-chart-card">
+    <div class="card flight-time-chart-card line-chart-section">
       <div class="chart-header">
         <h3>Flight Duration over Time</h3>
         <div class="toggle-switch-container">
@@ -221,102 +221,87 @@
         </div>
       </div>
       <div class="flight-time-chart-container">
-        <svg class="flight-time-chart" viewBox="0 0 800 400">
-          <!-- Y-axis grid lines -->
+        <svg class="flight-time-chart area-line-chart" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
+          <!-- Horizontal grid lines (subtle) -->
           <line
-            v-for="i in 5"
+            v-for="i in 4"
             :key="'grid-' + i"
-            :x1="70"
-            :y1="50 + (i - 1) * 70"
-            :x2="750"
-            :y2="50 + (i - 1) * 70"
-            stroke="#e0e0e0"
+            x1="60"
+            :y1="60 + (i - 1) * 75"
+            x2="780"
+            :y2="60 + (i - 1) * 75"
+            stroke="#e9ecef"
+            stroke-width="1"
+            stroke-dasharray="4,4"
+          />
+          
+          <!-- Bottom axis line -->
+          <line
+            x1="60"
+            y1="285"
+            x2="780"
+            y2="285"
+            stroke="#dee2e6"
             stroke-width="1"
           />
 
-          <!-- X-axis -->
-          <line
-            x1="70"
-            y1="330"
-            x2="750"
-            y2="330"
-            stroke="#333"
-            stroke-width="2"
-          />
-
-          <!-- Y-axis -->
-          <line
-            x1="70"
-            y1="50"
-            x2="70"
-            y2="330"
-            stroke="#333"
-            stroke-width="2"
-          />
-
-          <!-- Y-axis labels -->
+          <!-- Y-axis labels (left side) -->
           <text
             v-for="(label, i) in flightTimeChartData.yLabels"
             :key="'y-label-' + i"
-            x="60"
-            :y="330 - i * 70"
+            x="55"
+            :y="290 - i * 75"
             text-anchor="end"
-            class="axis-label"
+            class="chart-y-label"
           >
-            {{ label }}
+            {{ label }}h
           </text>
 
-          <!-- X-axis labels -->
+          <!-- X-axis labels (horizontal, below chart) -->
           <template v-if="selectedYear !== 'all'">
-            <!-- X-axis tick marks for single year view -->
-            <line
-              v-for="(month, i) in flightTimeChartData.xMonthLabels"
-              :key="'tick-' + i"
-              :x1="month.x"
-              y1="330"
-              :x2="month.x"
-              y2="340"
-              stroke="#333"
-              stroke-width="1"
-            />
-            <!-- X-axis labels for single year view (angled) -->
+            <!-- Month abbreviations for single year -->
             <text
               v-for="(month, i) in flightTimeChartData.xMonthLabels"
               :key="'month-label-' + i"
               :x="month.x"
-              y="345"
-              text-anchor="end"
-              :transform="`rotate(-45, ${month.x}, 345)`"
-              class="axis-label x-axis-label"
+              y="310"
+              text-anchor="middle"
+              class="chart-x-label"
             >
               {{ month.label }}
             </text>
           </template>
           <template v-else>
-            <!-- X-axis tick marks for all-time view -->
-            <line
+            <!-- Month abbreviations for all-time view -->
+            <text
               v-for="(yearLabel, i) in flightTimeChartData.xYearLabels"
-              :key="'tick-' + i"
-              :x1="yearLabel.x"
-              y1="330"
-              :x2="yearLabel.x"
-              y2="340"
-              stroke="#333"
-              stroke-width="1"
-            />
-            <!-- X-axis labels for all-time view (angled) -->
+              :key="'month-label-' + i"
+              :x="yearLabel.x"
+              y="310"
+              text-anchor="middle"
+              class="chart-x-label"
+            >
+              {{ yearLabel.monthLabel }}
+            </text>
+            <!-- Year labels below months -->
             <text
               v-for="(yearLabel, i) in flightTimeChartData.xYearLabels"
               :key="'year-label-' + i"
               :x="yearLabel.x"
-              y="345"
-              text-anchor="end"
-              :transform="`rotate(-45, ${yearLabel.x}, 345)`"
-              class="axis-label x-axis-label"
+              y="330"
+              text-anchor="middle"
+              class="chart-x-label-year"
             >
-              {{ yearLabel.label }}
+              {{ yearLabel.yearLabel }}
             </text>
           </template>
+
+          <!-- Area fill under line -->
+          <polygon
+            v-if="flightTimeChartData.points.length > 0"
+            :points="flightTimeChartData.areaPoints"
+            fill="rgba(84, 159, 116, 0.15)"
+          />
 
           <!-- Line path -->
           <polyline
@@ -324,7 +309,9 @@
             :points="flightTimeChartData.pathPoints"
             fill="none"
             stroke="#549f74"
-            stroke-width="1"
+            stroke-width="2.5"
+            stroke-linejoin="round"
+            stroke-linecap="round"
           />
 
           <!-- Data points -->
@@ -333,32 +320,23 @@
             :key="'point-' + i"
             :cx="point.x"
             :cy="point.y"
-            r="3"
-            fill="#549f74"
+            r="5"
+            fill="white"
+            stroke="#549f74"
+            stroke-width="2"
             class="data-point"
             @click="openFlightModal(point.flights)"
           >
             <title>{{ point.tooltip }}</title>
           </circle>
 
-          <!-- Y-axis title -->
-          <text
-            x="20"
-            y="190"
-            text-anchor="middle"
-            transform="rotate(-90, 20, 190)"
-            class="axis-title"
-          >
-            Flight Duration (hours)
-          </text>
-
           <!-- Year label for single year view -->
           <text
             v-if="selectedYear !== 'all'"
-            x="400"
-            y="390"
+            x="370"
+            y="355"
             text-anchor="middle"
-            class="axis-title"
+            class="chart-year-label"
           >
             {{ selectedYear }}
           </text>
@@ -370,7 +348,7 @@
     </div>
 
     <!-- Flight Distance Over Time Chart -->
-    <div class="card flight-time-chart-card">
+    <div class="card flight-time-chart-card line-chart-section">
       <div class="chart-header">
         <h3>Flight Distance over Time</h3>
         <div class="toggle-switch-container">
@@ -388,102 +366,87 @@
         <div v-if="flightDistanceChartData.points.length === 0" class="no-data-message">
           No flight data available for the selected filters
         </div>
-        <svg v-else class="flight-time-chart" viewBox="0 0 800 400">
-          <!-- Y-axis grid lines -->
+        <svg v-else class="flight-time-chart area-line-chart" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
+          <!-- Horizontal grid lines (subtle) -->
           <line
-            v-for="i in 5"
+            v-for="i in 4"
             :key="'grid-' + i"
-            :x1="70"
-            :y1="50 + (i - 1) * 70"
-            :x2="750"
-            :y2="50 + (i - 1) * 70"
-            stroke="#e0e0e0"
+            x1="60"
+            :y1="60 + (i - 1) * 75"
+            x2="780"
+            :y2="60 + (i - 1) * 75"
+            stroke="#e9ecef"
+            stroke-width="1"
+            stroke-dasharray="4,4"
+          />
+          
+          <!-- Bottom axis line -->
+          <line
+            x1="60"
+            y1="285"
+            x2="780"
+            y2="285"
+            stroke="#dee2e6"
             stroke-width="1"
           />
 
-          <!-- X-axis -->
-          <line
-            x1="70"
-            y1="330"
-            x2="750"
-            y2="330"
-            stroke="#333"
-            stroke-width="2"
-          />
-
-          <!-- Y-axis -->
-          <line
-            x1="70"
-            y1="50"
-            x2="70"
-            y2="330"
-            stroke="#333"
-            stroke-width="2"
-          />
-
-          <!-- Y-axis labels -->
+          <!-- Y-axis labels (left side) -->
           <text
             v-for="(label, i) in flightDistanceChartData.yLabels"
             :key="'y-label-' + i"
-            x="60"
-            :y="330 - i * 70"
+            x="55"
+            :y="290 - i * 75"
             text-anchor="end"
-            class="axis-label"
+            class="chart-y-label"
           >
-            {{ label }}
+            {{ label }}km
           </text>
 
-          <!-- X-axis labels -->
+          <!-- X-axis labels (horizontal, below chart) -->
           <template v-if="selectedYear !== 'all'">
-            <!-- X-axis tick marks for single year view -->
-            <line
-              v-for="(month, i) in flightDistanceChartData.xMonthLabels"
-              :key="'tick-' + i"
-              :x1="month.x"
-              y1="330"
-              :x2="month.x"
-              y2="340"
-              stroke="#333"
-              stroke-width="1"
-            />
-            <!-- X-axis labels for single year view (angled) -->
+            <!-- Month abbreviations for single year -->
             <text
               v-for="(month, i) in flightDistanceChartData.xMonthLabels"
               :key="'month-label-' + i"
               :x="month.x"
-              y="345"
-              text-anchor="end"
-              :transform="`rotate(-45, ${month.x}, 345)`"
-              class="axis-label x-axis-label"
+              y="310"
+              text-anchor="middle"
+              class="chart-x-label"
             >
               {{ month.label }}
             </text>
           </template>
           <template v-else>
-            <!-- X-axis tick marks for all-time view -->
-            <line
+            <!-- Month abbreviations for all-time view -->
+            <text
               v-for="(yearLabel, i) in flightDistanceChartData.xYearLabels"
-              :key="'tick-' + i"
-              :x1="yearLabel.x"
-              y1="330"
-              :x2="yearLabel.x"
-              y2="340"
-              stroke="#333"
-              stroke-width="1"
-            />
-            <!-- X-axis labels for all-time view (angled) -->
+              :key="'month-label-' + i"
+              :x="yearLabel.x"
+              y="310"
+              text-anchor="middle"
+              class="chart-x-label"
+            >
+              {{ yearLabel.monthLabel }}
+            </text>
+            <!-- Year labels below months -->
             <text
               v-for="(yearLabel, i) in flightDistanceChartData.xYearLabels"
               :key="'year-label-' + i"
               :x="yearLabel.x"
-              y="345"
-              text-anchor="end"
-              :transform="`rotate(-45, ${yearLabel.x}, 345)`"
-              class="axis-label x-axis-label"
+              y="330"
+              text-anchor="middle"
+              class="chart-x-label-year"
             >
-              {{ yearLabel.label }}
+              {{ yearLabel.yearLabel }}
             </text>
           </template>
+
+          <!-- Area fill under line -->
+          <polygon
+            v-if="flightDistanceChartData.points.length > 0"
+            :points="flightDistanceChartData.areaPoints"
+            fill="rgba(84, 159, 116, 0.15)"
+          />
 
           <!-- Line path -->
           <polyline
@@ -491,41 +454,34 @@
             :points="flightDistanceChartData.pathPoints"
             fill="none"
             stroke="#549f74"
-            stroke-width="1"
+            stroke-width="2.5"
+            stroke-linejoin="round"
+            stroke-linecap="round"
           />
 
           <!-- Data points -->
           <circle
             v-for="(point, i) in flightDistanceChartData.points"
-            :key="'point-' + i"
+            :key="'point-bg-' + i"
             :cx="point.x"
             :cy="point.y"
-            r="3"
-            fill="#549f74"
+            r="5"
+            fill="white"
+            stroke="#549f74"
+            stroke-width="2"
             class="data-point"
             @click="openFlightModal(point.flights)"
           >
             <title>{{ point.tooltip }}</title>
           </circle>
 
-          <!-- Y-axis title -->
-          <text
-            x="20"
-            y="190"
-            text-anchor="middle"
-            transform="rotate(-90, 20, 190)"
-            class="axis-title"
-          >
-            Flight Track Distance (km)
-          </text>
-
           <!-- Year label for single year view -->
           <text
             v-if="selectedYear !== 'all'"
-            x="400"
-            y="390"
+            x="420"
+            y="355"
             text-anchor="middle"
-            class="axis-title"
+            class="chart-year-label"
           >
             {{ selectedYear }}
           </text>
@@ -702,7 +658,6 @@
               <strong>{{ selectedActivityCell.avgFlights }}</strong>
             </div>
           </div>
-          <div class="activity-popup-arrow"></div>
         </div>
       </transition>
     </div>
@@ -1620,20 +1575,20 @@ export default {
         }
       };
 
-      // Create Y-axis labels (5 labels) with quarter-hour increments
+      // Create Y-axis labels (4 labels) with quarter-hour increments
       const yLabels = [];
-      for (let i = 0; i <= 4; i++) {
-        const value = step * i;
-        yLabels.push(formatTime(value));
+      for (let i = 0; i <= 3; i++) {
+        const value = (adjustedYMax / 3) * i;
+        yLabels.push(Math.round(value * 10) / 10);
       }
 
-      // Chart dimensions
-      const xStart = 70;
-      const xEnd = 750;
+      // Chart dimensions (Y-axis on left)
+      const xStart = 60;
+      const xEnd = 780;
       const chartWidth = xEnd - xStart;
-      const chartHeight = 280;
-      const yStart = 330;
-      const yEnd = 50;
+      const chartHeight = 225;
+      const yStart = 285;
+      const yEnd = 60;
 
       // Calculate points
       const isSingleYear = this.selectedYear !== "all";
@@ -1695,7 +1650,8 @@ export default {
         });
       }
 
-      // X-axis month labels (for single year)
+      // X-axis month labels (for single year) - 3-letter uppercase abbreviations
+      const monthAbbr = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
       let xMonthLabels = [];
       if (isSingleYear && flightData.length > 0) {
         const year = flightData[0].date.getFullYear();
@@ -1709,24 +1665,14 @@ export default {
               (firstOfMonth - new Date(year, 0, 1)) / (1000 * 60 * 60 * 24)
             ) + 1;
           const x = xStart + ((dayOfYear - 1) / (daysInYear - 1)) * chartWidth;
-          const label = firstOfMonth.toLocaleString("default", {
-            month: "short",
-          });
-          xMonthLabels.push({ x, label });
+          xMonthLabels.push({ x, label: monthAbbr[m] });
         }
-
-        // Add January of next year at the end
-        const janNextYear = new Date(year + 1, 0, 1);
-        const label = janNextYear.toLocaleString("default", {
-          month: "short",
-        });
-        xMonthLabels.push({ x: xStart + chartWidth, label });
       }
 
-      // X-axis labels (for all-time view) - always 12 ticks
+      // X-axis labels (for all-time view) - month abbreviations with years below
       let xYearLabels = [];
       if (!isSingleYear && flightData.length > 0) {
-        const numTicks = 12;
+        const numTicks = 8; // Fewer ticks for better readability
         const tickInterval = totalDays / numTicks;
 
         for (let i = 0; i <= numTicks; i++) {
@@ -1734,24 +1680,39 @@ export default {
           const tickDate = new Date(
             startDate.getTime() + daysFromStart * 24 * 60 * 60 * 1000
           );
-          const x = xStart + (daysFromStart / (totalDays - 1)) * chartWidth;
+          let x;
+          if (totalDays <= 1) {
+            x = xStart + (i / numTicks) * chartWidth;
+          } else {
+            x = xStart + (daysFromStart / (totalDays - 1)) * chartWidth;
+          }
 
-          // Format as month/year or just year depending on the range
-          const month = tickDate.toLocaleString("default", { month: "short" });
-          const year = tickDate.getFullYear();
-          const label = `${month} ${year}`;
+          // Month abbreviation (3-letter uppercase)
+          const monthLabel = monthAbbr[tickDate.getMonth()];
+          // Year (full 4 digits)
+          const yearLabel = tickDate.getFullYear().toString();
 
-          xYearLabels.push({ x, label });
+          xYearLabels.push({ x, monthLabel, yearLabel });
         }
       }
 
       // Create path points string
       const pathPoints = points.map((p) => `${p.x},${p.y}`).join(" ");
 
+      // Create area points for polygon fill
+      const baseY = 285; // Bottom of chart area
+      let areaPoints = "";
+      if (points.length > 0) {
+        const firstPoint = points[0];
+        const lastPoint = points[points.length - 1];
+        areaPoints = `${firstPoint.x},${baseY} ${pathPoints} ${lastPoint.x},${baseY}`;
+      }
+
       return {
         points: points,
         yLabels: yLabels,
         pathPoints: pathPoints,
+        areaPoints: areaPoints,
         xMonthLabels: xMonthLabels,
         xYearLabels: xYearLabels,
       };
@@ -1928,18 +1889,18 @@ export default {
       // Adjust yMax to ensure we always have at least 5 different non-zero labels
       const adjustedYMax = Math.max(yMax, 5);
 
-      // Create Y-axis labels (5 labels)
+      // Create Y-axis labels (4 labels for cleaner look)
       const yLabels = [];
-      for (let i = 0; i <= 4; i++) {
-        const value = (adjustedYMax / 4) * i;
-        yLabels.push(Math.round(value) + " km");
+      for (let i = 0; i <= 3; i++) {
+        const value = (adjustedYMax / 3) * i;
+        yLabels.push(Math.round(value));
       }
 
-      // Chart dimensions
-      const chartWidth = 680;
-      const chartHeight = 280;
-      const xStart = 70;
-      const yStart = 330;
+      // Chart dimensions (Y-axis on left)
+      const chartWidth = 720;
+      const chartHeight = 225;
+      const xStart = 60;
+      const yStart = 285;
 
       // Calculate points
       const isSingleYear = this.selectedYear !== "all";
@@ -1994,7 +1955,8 @@ export default {
         });
       }
 
-      // X-axis month labels (for single year)
+      // X-axis month labels (for single year) - 3-letter uppercase abbreviations
+      const monthAbbr = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
       let xMonthLabels = [];
       if (isSingleYear) {
         const year = parseInt(this.selectedYear);
@@ -2008,24 +1970,14 @@ export default {
               (firstOfMonth - new Date(year, 0, 1)) / (1000 * 60 * 60 * 24)
             ) + 1;
           const x = xStart + ((dayOfYear - 1) / (daysInYear - 1)) * chartWidth;
-          const label = firstOfMonth.toLocaleString("default", {
-            month: "short",
-          });
-          xMonthLabels.push({ x, label });
+          xMonthLabels.push({ x, label: monthAbbr[m] });
         }
-
-        // Add January of next year at the end
-        const janNextYear = new Date(year + 1, 0, 1);
-        const label = janNextYear.toLocaleString("default", {
-          month: "short",
-        });
-        xMonthLabels.push({ x: xStart + chartWidth, label });
       }
 
-      // X-axis labels (for all-time view)
+      // X-axis labels (for all-time view) - month abbreviations with years below
       let xYearLabels = [];
       if (!isSingleYear && flightData.length > 0) {
-        const numTicks = 12;
+        const numTicks = 8; // Fewer ticks for better readability
         const tickInterval = totalDays / numTicks;
 
         for (let i = 0; i <= numTicks; i++) {
@@ -2040,21 +1992,33 @@ export default {
             x = xStart + (daysFromStart / (totalDays - 1)) * chartWidth;
           }
 
-          const month = tickDate.toLocaleString("default", { month: "short" });
-          const year = tickDate.getFullYear();
-          const label = `${month} ${year}`;
+          // Month abbreviation (3-letter uppercase)
+          const monthLabel = monthAbbr[tickDate.getMonth()];
+          // Year (full 4 digits)
+          const yearLabel = tickDate.getFullYear().toString();
 
-          xYearLabels.push({ x, label });
+          xYearLabels.push({ x, monthLabel, yearLabel });
         }
       }
 
       // Create path points string
       const pathPoints = points.map((p) => `${p.x},${p.y}`).join(" ");
 
+      // Create area points for polygon fill
+      // Start from bottom-left, go through all points, end at bottom-right
+      const baseY = 285; // Bottom of chart area (adjusted for new viewBox)
+      let areaPoints = "";
+      if (points.length > 0) {
+        const firstPoint = points[0];
+        const lastPoint = points[points.length - 1];
+        areaPoints = `${firstPoint.x},${baseY} ${pathPoints} ${lastPoint.x},${baseY}`;
+      }
+
       return {
         points: points,
         yLabels: yLabels,
         pathPoints: pathPoints,
+        areaPoints: areaPoints,
         xMonthLabels: xMonthLabels,
         xYearLabels: xYearLabels,
       };
@@ -2836,6 +2800,8 @@ export default {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  background-color: white;
+  min-height: 100vh;
 }
 
 .statistics-container h1 {
@@ -2888,9 +2854,10 @@ h3 {
 
 .card {
   background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1rem 0;
+  border-radius: 0;
+  box-shadow: none;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .card-header {
@@ -3050,7 +3017,7 @@ h3 {
 
 .stat-card {
   text-align: center;
-  padding: 2rem 1.5rem;
+  padding: 1.5rem 0;
 }
 
 .pie-chart-container {
@@ -3261,7 +3228,7 @@ h3 {
 }
 
 .histogram-card {
-  padding: 2rem;
+  padding: 1.5rem 0;
 }
 
 .histogram-card .chart-header {
@@ -3352,8 +3319,8 @@ h3 {
 
 /* Flight Time Chart */
 .flight-time-chart-card {
-  padding: 2rem;
-  margin-bottom: 2rem;
+  padding: 1.5rem 0;
+  margin-bottom: 0;
 }
 
 .flight-time-chart-card .chart-header {
@@ -3375,8 +3342,8 @@ h3 {
 
 /* Flight Duration Chart */
 .flight-duration-chart-card {
-  padding: 2rem;
-  margin-bottom: 2rem;
+  padding: 1.5rem 0;
+  margin-bottom: 0;
 }
 
 .flight-duration-chart-card h3 {
@@ -3475,6 +3442,13 @@ h3 {
 .flight-time-chart-container {
   width: 100%;
   position: relative;
+  overflow: visible;
+}
+
+.flight-time-chart {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .flight-time-chart {
@@ -3497,14 +3471,55 @@ h3 {
   font-weight: 600;
 }
 
+/* Chart labels */
+.chart-y-label {
+  font-size: 14px;
+  fill: #495057;
+  font-weight: 600;
+}
+
+.chart-x-label {
+  font-size: 13px;
+  fill: #495057;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.chart-x-label-year {
+  font-size: 11px;
+  fill: #868e96;
+  font-weight: 500;
+}
+
+.chart-year-label {
+  font-size: 14px;
+  fill: #495057;
+  font-weight: 600;
+}
+
+.line-chart-section {
+  padding: 1rem 0;
+}
+
+.line-chart-section .flight-time-chart-container {
+  padding: 0;
+}
+
+.area-line-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 200px;
+}
+
 .data-point {
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .data-point:hover {
-  r: 5;
-  fill: #3d7a55;
+  r: 7 !important;
+  stroke-width: 3 !important;
 }
 
 .no-data {
@@ -3517,8 +3532,8 @@ h3 {
 /* Activity Grid (GitHub-style) */
 .activity-grid-card {
   position: relative;
-  padding: 2rem;
-  margin-bottom: 2rem;
+  padding: 1.5rem 0;
+  margin-bottom: 0;
   overflow: visible;
 }
 
@@ -3664,23 +3679,11 @@ h3 {
   position: relative;
   background: white;
   padding: 1rem 1.25rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
   border: 1px solid #e0e0e0;
   min-width: 220px;
   max-width: 300px;
-}
-
-.activity-popup-arrow {
-  position: absolute;
-  left: -6px;
-  top: 12px;
-  width: 12px;
-  height: 12px;
-  background: white;
-  border-left: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
-  transform: rotate(45deg);
 }
 
 .activity-popup-title {
@@ -3869,6 +3872,7 @@ h3 {
   .statistics-container {
     padding: 1rem;
     overflow-x: hidden;
+    background-color: white;
   }
 
   h1 {
@@ -3879,30 +3883,39 @@ h3 {
     font-size: 1.25rem;
   }
 
+  /* Cards are already full-width with no styling */
+  .card {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 0;
+    padding: 1rem 0;
+  }
+
   .key-stats-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+    gap: 0.75rem;
   }
 
   .key-stat-card {
-    padding: 1.5rem 1rem;
+    padding: 1rem 0.75rem;
+    border-radius: 8px;
   }
 
   .stat-title {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
 
   .stat-number {
-    font-size: 2rem;
+    font-size: 1.6rem;
   }
 
   .stats-grid {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 0;
   }
 
   .stat-card {
-    padding: 1.5rem 1rem;
+    padding: 1rem 0;
   }
 
   .floating-filter {
@@ -3922,9 +3935,19 @@ h3 {
     left: 1rem;
   }
 
+  /* Histogram section full width */
+  .histogram-section {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .histogram-card {
+    padding: 1rem 0;
+  }
+
   /* Flight Duration/Distance Charts - Mobile optimization */
   .flight-time-chart-card {
-    padding: 1rem;
+    padding: 1rem 0;
   }
 
   .flight-time-chart-card .chart-header {
@@ -3935,42 +3958,70 @@ h3 {
 
   .flight-time-chart-card .chart-header h3 {
     margin-bottom: 0;
+    font-size: 1rem;
   }
 
   .flight-time-chart-card .toggle-switch-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
     width: auto;
   }
 
-  .flight-time-chart-container {
-    min-height: 300px;
-    overflow-x: auto;
+  .flight-time-chart-card .toggle-label {
+    order: -1;
+    font-size: 0.85rem;
   }
 
+  .flight-time-chart-container {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Chart sizing */
   .flight-time-chart {
-    min-width: 500px;
-    height: 300px;
+    width: 100%;
+    height: auto;
+    min-height: 280px;
+  }
+
+  /* Simplify axis labels on mobile */
+  .flight-time-chart .axis-label {
+    font-size: 10px;
+  }
+
+  .flight-time-chart .axis-title {
+    font-size: 10px;
+  }
+
+  .flight-time-chart .x-axis-label {
+    font-size: 9px;
+  }
+
+  /* Make data points larger and more tappable */
+  .flight-time-chart .data-point {
+    r: 5;
   }
 
   /* Flight Duration Chart - make bigger on mobile */
   .flight-duration-chart-card {
-    padding: 1rem;
+    padding: 1rem 0;
   }
 
   .flight-duration-chart-container {
-    min-height: 250px;
-    overflow-x: auto;
+    width: 100%;
+    min-height: 220px;
   }
 
   .flight-duration-chart {
-    min-width: 400px;
-    height: 250px;
+    width: 100%;
+    height: auto;
+    min-height: 220px;
   }
 
   /* Histogram card (Glider Usage) - Mobile optimization */
-  .histogram-card {
-    padding: 1rem;
-  }
-
   .histogram-card .chart-header {
     flex-direction: column;
     align-items: flex-start;
@@ -4001,7 +4052,7 @@ h3 {
 
   /* Activity Grid (Flight Timing) - Mobile optimization */
   .activity-grid-card {
-    padding: 1.5rem 1rem;
+    padding: 1rem 0;
   }
 
   .activity-grids-wrapper {
@@ -4114,7 +4165,7 @@ h3 {
 
 /* Top Locations Table */
 .top-locations-card {
-  padding: 2rem;
+  padding: 1.5rem 0;
   margin-bottom: 5rem;
 }
 

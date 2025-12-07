@@ -349,6 +349,7 @@ import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
 import IGCParser from "igc-parser";
 import { flightOperations, gearOperations } from "../database/database.js";
+import { calculateIGCDistances } from "../utils/igcUtils.js";
 import countries from "../data/countries.json";
 import { formatDateWithWeekday as formatDate } from "../utils/dateUtils.js";
 
@@ -494,6 +495,14 @@ export default {
           throw new Error("Unable to parse time information from IGC file");
         }
 
+        // Calculate max altitude
+        let maxAltitude = 0;
+        for (const fix of flight.fixes) {
+          if (fix.gpsAltitude && fix.gpsAltitude > maxAltitude) {
+            maxAltitude = fix.gpsAltitude;
+          }
+        }
+
         return {
           startTime,
           endTime,
@@ -503,6 +512,8 @@ export default {
           gliderType: flight.gliderType || "",
           gliderSerial: flight.gliderSerial || "",
           totalFixes: flight.fixes.length,
+          fixes: flight.fixes, // Include fixes for distance calculation
+          maxAltitude,
           valid: true,
         };
       } catch (error) {
@@ -520,6 +531,9 @@ export default {
           // Native platform: Parse locally and store with Filesystem
           const fileContent = await readFileAsText(file);
           const igcData = parseIGCContent(fileContent, file.name);
+          
+          // Calculate distances from IGC content
+          const distances = calculateIGCDistances(fileContent);
 
           // Store IGC file in app's documents directory (use original filename)
           const fileName = file.name;
@@ -545,6 +559,9 @@ export default {
             gliderType: igcData.gliderType,
             gliderSerial: igcData.gliderSerial,
             totalFixes: igcData.totalFixes,
+            trackDistance: distances.trackDistance,
+            straightDistance: distances.straightDistance,
+            maxAltitude: distances.maxAltitude || igcData.maxAltitude,
             fileExists: false,
             existingFiles: [],
             igcContent: fileContent, // Store content for native
@@ -600,6 +617,9 @@ export default {
             gliderType: result.igcData.gliderType,
             gliderSerial: result.igcData.gliderSerial,
             totalFixes: result.igcData.totalFixes,
+            trackDistance: result.igcData.trackDistance,
+            straightDistance: result.igcData.straightDistance,
+            maxAltitude: result.igcData.maxAltitude,
             fileExists: result.fileExists,
             existingFiles: result.existingFiles || [],
           };
@@ -908,6 +928,9 @@ export default {
           comments: flight.value.comments || "",
           igcFilePath: uploadedIGC.value.filePath || null,
           igcSerial: uploadedIGC.value.gliderSerial || null,
+          trackDistance: uploadedIGC.value.trackDistance || null,
+          straightDistance: uploadedIGC.value.straightDistance || null,
+          maxAltitude: uploadedIGC.value.maxAltitude || null,
         };
 
         await flightOperations.add(flightData);
