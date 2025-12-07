@@ -385,7 +385,10 @@
         </div>
       </div>
       <div class="flight-time-chart-container">
-        <svg class="flight-time-chart" viewBox="0 0 800 400">
+        <div v-if="flightDistanceChartData.points.length === 0" class="no-data-message">
+          No flight data available for the selected filters
+        </div>
+        <svg v-else class="flight-time-chart" viewBox="0 0 800 400">
           <!-- Y-axis grid lines -->
           <line
             v-for="i in 5"
@@ -527,9 +530,6 @@
             {{ selectedYear }}
           </text>
         </svg>
-        <div v-if="flightDistanceChartData.points.length === 0" class="no-data">
-          No flight data available for the selected filters
-        </div>
       </div>
     </div>
 
@@ -3868,6 +3868,7 @@ h3 {
 @media (max-width: 768px) {
   .statistics-container {
     padding: 1rem;
+    overflow-x: hidden;
   }
 
   h1 {
@@ -3921,6 +3922,84 @@ h3 {
     left: 1rem;
   }
 
+  /* Flight Duration/Distance Charts - Mobile optimization */
+  .flight-time-chart-card {
+    padding: 1rem;
+  }
+
+  .flight-time-chart-card .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .flight-time-chart-card .chart-header h3 {
+    margin-bottom: 0;
+  }
+
+  .flight-time-chart-card .toggle-switch-container {
+    width: auto;
+  }
+
+  .flight-time-chart-container {
+    min-height: 300px;
+    overflow-x: auto;
+  }
+
+  .flight-time-chart {
+    min-width: 500px;
+    height: 300px;
+  }
+
+  /* Flight Duration Chart - make bigger on mobile */
+  .flight-duration-chart-card {
+    padding: 1rem;
+  }
+
+  .flight-duration-chart-container {
+    min-height: 250px;
+    overflow-x: auto;
+  }
+
+  .flight-duration-chart {
+    min-width: 400px;
+    height: 250px;
+  }
+
+  /* Histogram card (Glider Usage) - Mobile optimization */
+  .histogram-card {
+    padding: 1rem;
+  }
+
+  .histogram-card .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .histogram-card .toggle-group {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .histogram-card .toggle-switch-container {
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .histogram {
+    min-height: 200px;
+    gap: 0.5rem;
+  }
+
+  .histogram-bar-container {
+    height: 180px;
+  }
+
+  /* Activity Grid (Flight Timing) - Mobile optimization */
   .activity-grid-card {
     padding: 1.5rem 1rem;
   }
@@ -3932,69 +4011,105 @@ h3 {
 
   .activity-grid-container {
     padding: 0.5rem 0;
+    overflow-x: auto;
   }
 
   .day-cell {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 
   .month-label {
-    width: 16px;
+    width: 14px;
+    font-size: 8px;
+  }
+
+  .day-label {
     font-size: 9px;
   }
 
-  .day-label {
-    font-size: 10px;
-  }
-
   .grid-wrapper {
-    gap: 3px;
+    gap: 2px;
   }
 
   .month-column {
-    gap: 3px;
+    gap: 2px;
   }
 
   .month-labels {
-    gap: 3px;
-    margin-bottom: 8px;
+    gap: 2px;
+    margin-bottom: 6px;
   }
 
   .day-label-spacer {
-    width: 34px;
-  }
-
-  .grid-container {
-    gap: 6px;
-  }
-
-  .day-labels {
-    gap: 3px;
-  }
-
-  .day-label {
-    height: 16px;
-    line-height: 16px;
     width: 28px;
   }
 
+  .grid-container {
+    gap: 4px;
+  }
+
+  .day-labels {
+    gap: 2px;
+  }
+
+  .day-label {
+    height: 14px;
+    line-height: 14px;
+    width: 24px;
+  }
+
+  /* Activity popup - fix positioning on mobile */
+  .activity-popup {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 1001;
+  }
+
   .activity-popup-content {
-    padding: 0.75rem 1rem;
-    min-width: 180px;
+    padding: 1rem;
+    min-width: 200px;
+    max-width: 280px;
   }
 
   .activity-popup-title {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .activity-popup-value {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .activity-popup-value strong {
-    font-size: 16px;
+    font-size: 18px;
   }
+
+  /* No data message - centered without graph */
+  .flight-time-chart-container .no-data {
+    position: relative;
+    padding: 40px 20px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+  }
+
+  /* Hide SVG when no data */
+  .flight-time-chart-container:has(.no-data) .flight-time-chart {
+    display: none;
+  }
+}
+
+/* No data message */
+.no-data-message {
+  padding: 40px 20px;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin: 20px 0;
 }
 
 /* Top Locations Table */
