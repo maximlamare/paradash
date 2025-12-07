@@ -2,72 +2,6 @@
   <div class="flights-container">
     <h1>Flights</h1>
 
-    <!-- Filters Container -->
-    <div class="filters-container">
-      <!-- Category Filter Tabs -->
-      <div class="filter-tabs" v-if="flightCategories.length > 1">
-        <h3>Filter by Category</h3>
-        <div class="tabs-container">
-          <button
-            @click="selectedCategory = 'All'"
-            class="tab-btn"
-            :class="{ active: selectedCategory === 'All' }"
-          >
-            All
-          </button>
-          <button
-            v-for="category in flightCategories"
-            :key="category"
-            @click="selectedCategory = category"
-            class="tab-btn"
-            :class="{ active: selectedCategory === category }"
-          >
-            {{ category }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Flight Type Filter Tabs -->
-      <div class="filter-tabs" v-if="flightTypes.length > 1">
-        <h3>Filter by Flight Type</h3>
-        <div class="tabs-container">
-          <button
-            @click="selectedFlightType = 'All'"
-            class="tab-btn"
-            :class="{ active: selectedFlightType === 'All' }"
-          >
-            All
-          </button>
-          <button
-            v-for="flightType in flightTypes"
-            :key="flightType"
-            @click="selectedFlightType = flightType"
-            class="tab-btn"
-            :class="{ active: selectedFlightType === flightType }"
-          >
-            {{ flightType }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Glider Filter Dropdown -->
-      <div class="filter-tabs">
-        <h3>Filter by Glider</h3>
-        <div class="dropdown-container">
-          <select v-model="selectedGlider" class="glider-filter-dropdown">
-            <option value="All">All Gliders</option>
-            <option
-              v-for="glider in availableGliders"
-              :key="glider.id"
-              :value="glider.id"
-            >
-              {{ glider.manufacturer }} {{ glider.model }}
-            </option>
-          </select>
-        </div>
-      </div>
-    </div>
-
     <div class="card">
       <div v-if="loading" class="loading">Loading flights...</div>
 
@@ -78,56 +12,118 @@
         <span v-else>No flights recorded yet.</span>
       </div>
 
-      <table v-else class="flights-table">
-        <thead>
-          <tr>
-            <th>Flight #</th>
-            <th>Date</th>
-            <th>Start Time</th>
-            <th>End Time</th>
-            <th>Flight Time</th>
-            <th>Takeoff</th>
-            <th>Landing</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="(flight, index) in filteredFlights"
-            :key="flight.id"
-            @click="goToFlightDetail(flight.id)"
-            class="flight-row"
-          >
-            <td>{{ getRelativeFlightNumber(index) }}</td>
-            <td>{{ formatDate(flight.date) }}</td>
-            <td>{{ flight.flightStart }}</td>
-            <td>{{ flight.flightEnd }}</td>
-            <td>{{ flight.flightTime }}</td>
-            <td>
-              <div class="location">
+      <div v-else class="table-wrapper">
+        <table class="flights-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Takeoff</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(flight, index) in filteredFlights"
+              :key="flight.id"
+              @click="goToFlightDetail(flight.id)"
+              class="flight-row"
+            >
+              <td class="flight-num">{{ getRelativeFlightNumber(index) }}</td>
+              <td class="flight-date">{{ formatDate(flight.date) }}</td>
+              <td class="flight-time">{{ flight.flightTime }}</td>
+              <td class="flight-takeoff">
                 <span class="location-name">{{ flight.takeoffLocation }}</span>
-                <span class="country-code">{{
-                  flight.takeoffCountryCode
-                }}</span>
-              </div>
-            </td>
-            <td>
-              <div class="location">
-                <span class="location-name">{{ flight.landingLocation }}</span>
-                <span class="country-code">{{
-                  flight.landingCountryCode
-                }}</span>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                <span class="country-code">{{ flight.takeoffCountryCode }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Filters Container - Now below the table -->
+    <div class="filters-container" v-if="flightCategories.length > 1 || flightTypes.length > 1 || availableGliders.length > 0">
+      <button 
+        class="filters-toggle" 
+        @click="showFilters = !showFilters"
+        :class="{ active: hasActiveFilters }"
+      >
+        <span>Filters</span>
+        <span v-if="hasActiveFilters" class="filter-badge">Active</span>
+        <span class="toggle-icon">{{ showFilters ? '▲' : '▼' }}</span>
+      </button>
+      
+      <div v-if="showFilters" class="filters-panel">
+        <!-- Category Filter Tabs -->
+        <div class="filter-tabs" v-if="flightCategories.length > 1">
+          <h4>Category</h4>
+          <div class="tabs-container">
+            <button
+              @click="selectedCategory = 'All'"
+              class="tab-btn"
+              :class="{ active: selectedCategory === 'All' }"
+            >
+              All
+            </button>
+            <button
+              v-for="category in flightCategories"
+              :key="category"
+              @click="selectedCategory = category"
+              class="tab-btn"
+              :class="{ active: selectedCategory === category }"
+            >
+              {{ category }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Flight Type Filter Tabs -->
+        <div class="filter-tabs" v-if="flightTypes.length > 1">
+          <h4>Type</h4>
+          <div class="tabs-container">
+            <button
+              @click="selectedFlightType = 'All'"
+              class="tab-btn"
+              :class="{ active: selectedFlightType === 'All' }"
+            >
+              All
+            </button>
+            <button
+              v-for="flightType in flightTypes"
+              :key="flightType"
+              @click="selectedFlightType = flightType"
+              class="tab-btn"
+              :class="{ active: selectedFlightType === flightType }"
+            >
+              {{ flightType }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Glider Filter Dropdown -->
+        <div class="filter-tabs" v-if="availableGliders.length > 0">
+          <h4>Glider</h4>
+          <div class="dropdown-container">
+            <select v-model="selectedGlider" class="glider-filter-dropdown">
+              <option value="All">All Gliders</option>
+              <option
+                v-for="glider in availableGliders"
+                :key="glider.id"
+                :value="glider.id"
+              >
+                {{ glider.manufacturer }} {{ glider.model }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Floating Add Flight Button -->
     <div class="floating-add-flight">
       <button class="add-flight-btn" @click="goToAddFlight">
         <span class="add-icon">+</span>
-        <span class="add-text">Add Flight</span>
       </button>
     </div>
   </div>
@@ -148,6 +144,7 @@ export default {
       selectedGlider: "All",
       flightCategories: ["On-site", "XC", "H&F"],
       flightTypes: ["Paragliding", "Speedflying"],
+      showFilters: false,
     };
   },
   computed: {
@@ -295,104 +292,176 @@ export default {
 <style scoped>
 .flights-container {
   max-width: 100%;
+  padding-bottom: 80px; /* Space for floating button */
 }
 
 .flights-container h1 {
   color: #549f74;
-  margin-bottom: 30px;
+  margin-bottom: 1rem;
   text-align: center;
+  font-size: 1.5rem;
 }
 
-.flights-header {
+.card {
+  overflow: hidden;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.flights-table {
+  width: 100%;
+  min-width: 320px;
+  border-collapse: collapse;
+}
+
+.flights-table th {
+  background-color: #549f74;
+  font-weight: 600;
+  color: white;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.85rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.flights-table td {
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9rem;
+}
+
+.flight-num {
+  font-weight: 600;
+  color: #549f74;
+  width: 40px;
+}
+
+.flight-date {
+  white-space: nowrap;
+  width: 90px;
+}
+
+.flight-time {
+  font-weight: 500;
+  width: 55px;
+}
+
+.flight-takeoff {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 1.5rem;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.flights-header h2 {
-  color: #333;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.header-actions .btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 5px;
+.flight-row {
   cursor: pointer;
-  font-size: 16px;
-  font-weight: 800;
-  transition: all 0.3s ease;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  transition: background-color 0.2s ease;
 }
 
-/* Component-specific button styles */
-
-.btn-large {
-  padding: 25px 30px;
-  font-size: 20px;
-  font-weight: 800;
+.flight-row:hover {
+  background-color: #f0f7f3;
 }
 
+.flight-row:active {
+  background-color: #e0f0e8;
+}
+
+.no-flights {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-style: italic;
+}
+
+.location-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.country-code {
+  font-size: 0.75rem;
+  color: #888;
+  font-weight: normal;
+}
+
+/* Filters Container - Collapsible */
 .filters-container {
-  display: flex;
-  gap: 2rem;
-  margin-bottom: 1.5rem;
+  margin-top: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-@media (max-width: 768px) {
-  .filters-container {
-    flex-direction: column;
-    gap: 1rem;
-  }
+.filters-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.filters-toggle.active {
+  color: #549f74;
+}
+
+.filter-badge {
+  background: #549f74;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+.toggle-icon {
+  font-size: 0.7rem;
+  color: #888;
+}
+
+.filters-panel {
+  padding: 1rem;
+  border-top: 1px solid #e9ecef;
 }
 
 .filter-tabs {
-  flex: 1;
-  margin-bottom: 0;
+  margin-bottom: 1rem;
 }
 
 .filter-tabs:last-child {
-  text-align: right;
+  margin-bottom: 0;
 }
 
-.filter-tabs:last-child .tabs-container {
-  justify-content: flex-end;
-}
-
-.filter-tabs h3 {
+.filter-tabs h4 {
   color: #495057;
-  margin-bottom: 0.75rem;
-  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
 .tabs-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: 0.4rem;
 }
 
 .tab-btn {
-  padding: 0.5rem 1rem;
-  border: 2px solid #dee2e6;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #dee2e6;
   background-color: white;
   color: #495057;
-  border-radius: 20px;
+  border-radius: 16px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .tab-btn:hover {
@@ -408,215 +477,105 @@ export default {
 
 .dropdown-container {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
 }
 
 .glider-filter-dropdown {
-  padding: 0.5rem 1rem;
-  border: 2px solid #dee2e6;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #dee2e6;
   background-color: white;
   color: #495057;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  min-width: 200px;
-  transition: all 0.3s ease;
-}
-
-.glider-filter-dropdown:hover {
-  border-color: #549f74;
+  width: 100%;
+  max-width: 250px;
 }
 
 .glider-filter-dropdown:focus {
   outline: none;
   border-color: #549f74;
-  box-shadow: 0 0 0 2px rgba(84, 159, 116, 0.25);
-}
-
-.flights-table {
-  width: 100%;
-  margin-top: 1rem;
-}
-
-.flights-table th {
-  background-color: #f8f9fa;
-  font-weight: 600;
-  color: #495057;
-  padding: 1rem 0.75rem;
-}
-
-.flights-table td {
-  padding: 0.75rem;
-}
-
-.flight-row {
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.flight-row:hover {
-  background-color: #f8f9fa;
-}
-
-/* Loading styles inherited from global */
-
-.no-flights {
-  text-align: center;
-  padding: 2rem;
-  color: #666;
-  font-style: italic;
-}
-
-.weather-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-
-.weather-badge.excellent {
-  background-color: #d4edda;
-  color: #155724;
-}
-
-.weather-badge.good {
-  background-color: #d1ecf1;
-  color: #0c5460;
-}
-
-.weather-badge.fair {
-  background-color: #fff3cd;
-  color: #856404;
-}
-
-.weather-badge.poor {
-  background-color: #f8d7da;
-  color: #721c24;
-}
-
-.location {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.location-name {
-  font-weight: 500;
-}
-
-.country-code {
-  font-size: 0.8rem;
-  color: #666;
-  font-weight: normal;
-  background-color: #f8f9fa;
-  padding: 0.1rem 0.3rem;
-  border-radius: 4px;
-  display: inline-block;
-  width: fit-content;
-}
-
-.stats-summary {
-  display: flex;
-  gap: 2rem;
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-}
-
-.stat {
-  color: #495057;
 }
 
 /* Floating Add Flight Button */
 .floating-add-flight {
   position: fixed;
-  bottom: 2rem;
-  right: 2rem;
+  bottom: 1.5rem;
+  right: 1.5rem;
   z-index: 1000;
 }
 
 .add-flight-btn {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
   background: #549f74;
   color: white;
   border: none;
-  border-radius: 50px;
-  font-size: 1.1rem;
-  font-weight: 600;
+  border-radius: 50%;
+  font-size: 1.8rem;
+  font-weight: 400;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(84, 159, 116, 0.4);
   transition: all 0.3s ease;
 }
 
 .add-flight-btn:hover {
   background: #448060;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(84, 159, 116, 0.5);
+  transform: scale(1.05);
+}
+
+.add-flight-btn:active {
+  transform: scale(0.95);
 }
 
 .add-icon {
-  font-size: 1.5rem;
   line-height: 1;
-}
-
-.add-text {
-  font-size: 1rem;
+  margin-top: -2px;
 }
 
 @media (max-width: 768px) {
-  .flights-header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: flex-start;
+  .flights-container {
+    padding-bottom: 100px;
   }
 
-  .filter-tabs {
-    margin-bottom: 1rem;
+  .flights-container h1 {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
   }
 
-  .filter-tabs:last-child {
-    text-align: left;
-  }
-
-  .filter-tabs:last-child .tabs-container {
-    justify-content: flex-start;
-  }
-
-  .tabs-container {
-    gap: 0.25rem;
-  }
-
-  .tab-btn {
+  .flights-table th {
+    padding: 0.6rem 0.4rem;
     font-size: 0.8rem;
-    padding: 0.4rem 0.8rem;
   }
 
-  .glider-filter-dropdown {
-    font-size: 0.8rem;
-    min-width: 150px;
-    width: 100%;
-  }
-
-  .stats-summary {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .flights-table {
-    font-size: 0.9rem;
-  }
-
-  .flights-table th,
   .flights-table td {
-    padding: 0.5rem;
+    padding: 0.5rem 0.4rem;
+    font-size: 0.85rem;
+  }
+
+  .flight-num {
+    width: 35px;
+  }
+
+  .flight-date {
+    width: 75px;
+    font-size: 0.8rem;
+  }
+
+  .flight-time {
+    width: 50px;
+  }
+
+  .location-name {
+    font-size: 0.85rem;
+  }
+
+  .country-code {
+    font-size: 0.7rem;
   }
 
   .floating-add-flight {
@@ -625,8 +584,20 @@ export default {
   }
 
   .add-flight-btn {
-    padding: 0.9rem 1.3rem;
-    font-size: 1rem;
+    width: 52px;
+    height: 52px;
+    font-size: 1.6rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .flights-table th,
+  .flights-table td {
+    padding: 0.4rem 0.3rem;
+  }
+
+  .flight-date {
+    font-size: 0.75rem;
   }
 }
 </style>

@@ -7,14 +7,17 @@
         <label>IGC Flight Log (Optional)</label>
         <div class="igc-upload-area">
           <div v-if="!uploadedIGC.file" class="upload-input-section">
-            <input
-              ref="fileInput"
-              type="file"
-              accept=".igc"
-              @change="handleFileSelect"
-              class="form-control file-input"
-            />
-            <p class="upload-hint">Upload an IGC file</p>
+            <label class="file-input-label">
+              <input
+                ref="fileInput"
+                type="file"
+                accept=".igc"
+                @change="handleFileSelect"
+                class="file-input-hidden"
+              />
+              <span class="file-input-btn">Choose IGC File</span>
+            </label>
+            <p class="upload-hint">Select an IGC file to auto-fill flight data</p>
           </div>
 
           <div v-else class="igc-file-confirmation">
@@ -130,11 +133,13 @@
               <input
                 type="number"
                 id="durationHours"
-                v-model.number="durationHours"
+                v-model="durationHoursInput"
                 min="0"
                 max="23"
                 class="form-control duration-input"
                 placeholder="0"
+                @focus="clearIfZero('hours')"
+                @blur="restoreIfEmpty('hours')"
               />
               <label class="duration-label">hours</label>
             </div>
@@ -142,11 +147,13 @@
               <input
                 type="number"
                 id="durationMinutes"
-                v-model.number="durationMinutes"
+                v-model="durationMinutesInput"
                 min="0"
                 max="59"
                 class="form-control duration-input"
                 placeholder="0"
+                @focus="clearIfZero('minutes')"
+                @blur="restoreIfEmpty('minutes')"
               />
               <label class="duration-label">minutes</label>
             </div>
@@ -323,65 +330,7 @@
         </button>
       </div>
 
-      <!-- Confirmation Dialog -->
-      <div v-if="showConfirmation" class="confirmation-overlay">
-        <div class="confirmation-dialog">
-          <h3>Confirm Flight Details</h3>
-          <div class="confirmation-content">
-            <p><strong>Category:</strong> {{ flight.category }}</p>
-            <p><strong>Type:</strong> {{ flight.type }}</p>
-            <p><strong>Date:</strong> {{ formatDate(flight.date) }}</p>
-            <p><strong>Start Time:</strong> {{ flight.startTime }}</p>
-            <p><strong>Duration:</strong> {{ flightDuration }}</p>
-            <p>
-              <strong>Takeoff:</strong> {{ flight.startLocation }}
-              {{ flight.startCountry ? `(${flight.startCountry})` : "" }}
-            </p>
-            <p>
-              <strong>Landing:</strong> {{ flight.endLocation }}
-              {{ flight.endCountry ? `(${flight.endCountry})` : "" }}
-            </p>
-            <p v-if="flight.gliderId">
-              <strong>Glider:</strong> {{ getGliderName(flight.gliderId) }}
-            </p>
-            <p v-if="uploadedIGC.originalName">
-              <strong>IGC File:</strong> {{ uploadedIGC.originalName }}
-            </p>
-            <div v-if="getValidLinks().length > 0" class="confirmation-links">
-              <p><strong>Links:</strong></p>
-              <ul class="links-list">
-                <li
-                  v-for="(link, index) in getValidLinks()"
-                  :key="index"
-                  class="link-item"
-                >
-                  {{ link }}
-                </li>
-              </ul>
-            </div>
-            <p v-if="flight.comments">
-              <strong>Comments:</strong> {{ flight.comments }}
-            </p>
-          </div>
-          <div class="confirmation-actions">
-            <button
-              @click="confirmSubmit"
-              class="btn btn-primary"
-              :disabled="isSubmitting"
-            >
-              {{ isSubmitting ? "Adding..." : "Confirm & Add Flight" }}
-            </button>
-            <button
-              @click="cancelSubmit"
-              class="btn btn-secondary"
-              :disabled="isSubmitting"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </form>
+      </form>
 
     <div v-if="successMessage" class="success-message">
       {{ successMessage }}
@@ -396,6 +345,9 @@
 <script>
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
+import IGCParser from "igc-parser";
 import { flightOperations, gearOperations } from "../database/database.js";
 import countries from "../data/countries.json";
 import { formatDateWithWeekday as formatDate } from "../utils/dateUtils.js";
@@ -421,9 +373,35 @@ export default {
 
     const durationHours = ref(0);
     const durationMinutes = ref(0);
+    const durationHoursInput = ref("");
+    const durationMinutesInput = ref("");
 
-    // Confirmation dialog state
-    const showConfirmation = ref(false);
+    // Check if running on native platform
+    const isNativePlatform = computed(() => {
+      const platform = Capacitor.getPlatform();
+      return platform === "android" || platform === "ios";
+    });
+
+    // Duration input handlers for better UX
+    const clearIfZero = (field) => {
+      if (field === "hours" && durationHoursInput.value === "0") {
+        durationHoursInput.value = "";
+      } else if (field === "minutes" && durationMinutesInput.value === "0") {
+        durationMinutesInput.value = "";
+      }
+    };
+
+    const restoreIfEmpty = (field) => {
+      if (field === "hours") {
+        const val = parseInt(durationHoursInput.value) || 0;
+        durationHours.value = val;
+        durationHoursInput.value = val.toString();
+      } else if (field === "minutes") {
+        const val = parseInt(durationMinutesInput.value) || 0;
+        durationMinutes.value = val;
+        durationMinutesInput.value = val.toString();
+      }
+    };
 
     // IGC file upload state
     const uploadedIGC = ref({
@@ -510,6 +488,8 @@ export default {
             .map(Number);
           durationHours.value = hours;
           durationMinutes.value = minutes;
+          durationHoursInput.value = hours.toString();
+          durationMinutesInput.value = minutes.toString();
         }
       } catch (error) {
         console.error("IGC upload error:", error);
@@ -726,25 +706,18 @@ export default {
       ).padStart(2, "0")}`;
     };
 
-    // Submit the flight form (shows confirmation first)
+    // Submit the flight form directly
     const submitFlight = async () => {
-      // Validate duration before showing confirmation
+      // Parse duration inputs
+      durationHours.value = parseInt(durationHoursInput.value) || 0;
+      durationMinutes.value = parseInt(durationMinutesInput.value) || 0;
+
+      // Validate duration
       if (durationHours.value === 0 && durationMinutes.value === 0) {
         errorMessage.value = "Flight duration must be greater than 0";
         return;
       }
 
-      // Show confirmation dialog
-      showConfirmation.value = true;
-    };
-
-    // Cancel the submission
-    const cancelSubmit = () => {
-      showConfirmation.value = false;
-    };
-
-    // Confirm and actually submit the flight
-    const confirmSubmit = async () => {
       try {
         isSubmitting.value = true;
         errorMessage.value = "";
@@ -787,7 +760,6 @@ export default {
         await flightOperations.add(flightData);
 
         successMessage.value = "Flight added successfully!";
-        showConfirmation.value = false;
         resetForm();
 
         // Redirect to flights list after a short delay
@@ -841,6 +813,8 @@ export default {
       };
       durationHours.value = 0;
       durationMinutes.value = 0;
+      durationHoursInput.value = "";
+      durationMinutesInput.value = "";
       errorMessage.value = "";
       successMessage.value = "";
 
@@ -879,6 +853,8 @@ export default {
       flight,
       durationHours,
       durationMinutes,
+      durationHoursInput,
+      durationMinutesInput,
       flightDuration,
       categories,
       sportTypes,
@@ -894,13 +870,14 @@ export default {
       removeLink,
       submitFlight,
       resetForm,
-      // Confirmation dialog
-      showConfirmation,
-      confirmSubmit,
-      cancelSubmit,
       formatDate,
       getGliderName,
       getValidLinks,
+      // Platform check
+      isNativePlatform,
+      // Duration input handlers
+      clearIfZero,
+      restoreIfEmpty,
       // IGC upload functionality
       uploadedIGC,
       igcData,
@@ -959,6 +936,10 @@ export default {
 .duration-input {
   width: 80px;
   text-align: center;
+}
+
+.duration-input::placeholder {
+  color: #adb5bd;
 }
 
 .duration-label {
@@ -1032,7 +1013,23 @@ export default {
 
 /* IGC Upload Styles */
 .igc-upload-area {
-  min-height: 80px;
+  min-height: 60px;
+}
+
+.native-igc-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 15px;
+  background: #f0f7f3;
+  border: 1px solid #c3e6cb;
+  border-radius: 8px;
+  color: #549f74;
+  font-size: 0.9rem;
+}
+
+.notice-icon {
+  font-size: 1rem;
 }
 
 .upload-input-section {
@@ -1040,11 +1037,33 @@ export default {
   padding: 15px;
 }
 
-.file-input {
-  margin-bottom: 10px;
-  max-width: 300px;
-  margin: 0 auto 10px auto;
-  display: block;
+.file-input-hidden {
+  display: none;
+}
+
+.file-input-label {
+  display: inline-block;
+  cursor: pointer;
+}
+
+.file-input-btn {
+  display: inline-block;
+  padding: 10px 20px;
+  background: #549f74;
+  color: white;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.file-input-btn:hover {
+  background: #448060;
+}
+
+.file-input-btn:active {
+  background: #3a7055;
 }
 
 .upload-hint {
@@ -1219,77 +1238,4 @@ export default {
   }
 }
 
-/* Confirmation Dialog Specific Styles */
-.confirmation-dialog {
-  padding: 30px;
-  max-width: 500px;
-}
-
-.confirmation-dialog h3 {
-  color: #549f74;
-  margin-bottom: 20px;
-  text-align: center;
-  font-size: 1.5rem;
-}
-
-.confirmation-content {
-  margin-bottom: 25px;
-}
-
-.confirmation-content p {
-  margin: 8px 0;
-  padding: 5px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.confirmation-content p:last-child {
-  border-bottom: none;
-}
-
-.confirmation-content strong {
-  color: #333;
-  min-width: 120px;
-  display: inline-block;
-}
-
-.confirmation-links {
-  margin-top: 15px;
-}
-
-.links-list {
-  list-style: none;
-  padding: 0;
-  margin: 5px 0 0 120px;
-}
-
-.link-item {
-  margin-bottom: 5px;
-  color: #1976d2;
-  word-break: break-all;
-}
-
-.confirmation-actions {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-}
-
-.confirmation-actions .btn {
-  padding: 12px 20px;
-}
-
-@media (max-width: 768px) {
-  .confirmation-dialog {
-    margin: 20px;
-    padding: 20px;
-  }
-
-  .confirmation-actions {
-    flex-direction: column;
-  }
-
-  .confirmation-actions .btn {
-    width: 100%;
-  }
-}
 </style>

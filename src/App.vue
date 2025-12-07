@@ -9,8 +9,11 @@
         </div>
       </button>
       <div class="header-content">
-        <img src="/images/logo.svg" alt="ParaDash Logo" class="logo" />
-        <p>paraDash</p>
+        <div class="logo-title">
+          <span class="title-part">para</span>
+          <img src="/images/logo.svg" alt="D" class="logo" />
+          <span class="title-part">ash</span>
+        </div>
       </div>
     </header>
 
@@ -95,7 +98,7 @@ export default {
 .header {
   background: #549f74;
   color: white;
-  padding: 2rem;
+  padding: 0.75rem 1rem;
   text-align: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: relative;
@@ -142,21 +145,28 @@ export default {
 
 .header-content {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+}
+
+.logo-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.title-part {
+  font-weight: bold;
+  font-size: 1.8rem;
+  letter-spacing: -0.02em;
 }
 
 .logo {
-  height: 120px;
+  height: 48px;
   width: auto;
-}
-
-.header p {
-  margin: 0;
-  opacity: 0.9;
-  font-weight: bold;
-  font-size: 1.8rem;
+  margin: 0 4px;
 }
 
 .sidebar-overlay {
@@ -262,19 +272,23 @@ export default {
 
 @media (max-width: 768px) {
   .header {
-    padding: 1.5rem;
+    padding: 0.5rem 1rem;
   }
 
   .logo {
-    height: 90px;
+    height: 40px;
+  }
+
+  .title-part {
+    font-size: 1.5rem;
   }
 
   .menu-btn {
-    left: 1rem;
+    left: 0.75rem;
   }
 
   .main {
-    padding: 1rem;
+    padding: 0.75rem;
   }
 
   .sidebar {
