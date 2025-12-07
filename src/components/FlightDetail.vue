@@ -7,47 +7,37 @@
     </div>
 
     <div v-else-if="flight" class="flight-content">
-      <!-- Header with back button -->
+      <!-- Header -->
       <div class="flight-header">
+        <h1>Flight Details</h1>
         <div class="flight-nav">
           <button
             @click="goBack"
             class="nav-btn back-btn"
             aria-label="Back to flights list"
           >
-            ←
+            ← Back
           </button>
-          <button
-            @click="goToPreviousFlight"
-            class="nav-btn prev-btn"
-            :disabled="!previousFlight"
-            aria-label="Previous flight"
-            title="Previous flight"
-          >
-            ‹
-          </button>
-          <button
-            @click="goToNextFlight"
-            class="nav-btn next-btn"
-            :disabled="!nextFlight"
-            aria-label="Next flight"
-            title="Next flight"
-          >
-            ›
-          </button>
-        </div>
-        <h1>Flight Details</h1>
-        <div class="header-actions">
-          <button @click="editFlight" class="action-btn edit-btn">
-            Edit Flight
-          </button>
-          <button
-            @click="deleteFlight"
-            class="action-btn delete-btn"
-            :disabled="deleting"
-          >
-            {{ deleting ? "Deleting..." : "Delete Flight" }}
-          </button>
+          <div class="nav-arrows">
+            <button
+              @click="goToNextFlight"
+              class="nav-btn next-btn"
+              :disabled="!nextFlight"
+              aria-label="Next flight (older)"
+              title="Next flight (older)"
+            >
+              ‹ Older
+            </button>
+            <button
+              @click="goToPreviousFlight"
+              class="nav-btn prev-btn"
+              :disabled="!previousFlight"
+              aria-label="Previous flight (newer)"
+              title="Previous flight (newer)"
+            >
+              Newer ›
+            </button>
+          </div>
         </div>
       </div>
 
@@ -125,24 +115,6 @@
           </div>
         </div>
 
-        <!-- IGC File Card -->
-        <div class="info-card" v-if="flight.igcFilePath">
-          <h3>IGC File</h3>
-          <div class="info-row">
-            <span class="label">File:</span>
-            <span class="value">{{ flight.igcFilePath }}</span>
-          </div>
-          <div class="info-row" v-if="flight.igcSerial">
-            <span class="label">Serial:</span>
-            <span class="value">{{ flight.igcSerial }}</span>
-          </div>
-          <div class="igc-actions">
-            <button @click="downloadIGC" class="btn-download">
-              📥 Download IGC
-            </button>
-          </div>
-        </div>
-
         <!-- Distance Card -->
         <div
           class="info-card"
@@ -210,6 +182,38 @@
           </div>
           <div v-else class="no-track-data">No flight track data available</div>
         </div>
+      </div>
+
+      <!-- IGC File Card -->
+      <div class="info-card" v-if="flight.igcFilePath">
+        <h3>IGC File</h3>
+        <div class="info-row">
+          <span class="label">File:</span>
+          <span class="value igc-filename">{{ flight.igcFilePath }}</span>
+        </div>
+        <div class="info-row" v-if="flight.igcSerial">
+          <span class="label">Serial:</span>
+          <span class="value">{{ flight.igcSerial }}</span>
+        </div>
+        <div class="igc-actions">
+          <button @click="downloadIGC" class="btn-download">
+            📥 Download IGC
+          </button>
+        </div>
+      </div>
+
+      <!-- Action Buttons at Bottom -->
+      <div class="bottom-actions">
+        <button @click="editFlight" class="action-btn edit-btn">
+          ✏️ Edit Flight
+        </button>
+        <button
+          @click="deleteFlight"
+          class="action-btn delete-btn"
+          :disabled="deleting"
+        >
+          {{ deleting ? "Deleting..." : "🗑️ Delete Flight" }}
+        </button>
       </div>
 
       <!-- Success/Error Messages -->
@@ -1033,18 +1037,27 @@ export default {
 }
 
 .flight-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
   border-bottom: 2px solid #eee;
-  position: relative;
+}
+
+.flight-header h1 {
+  margin: 0 0 12px 0;
+  color: #549f74;
+  text-align: center;
+  font-size: 1.5rem;
 }
 
 .flight-nav {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.nav-arrows {
+  display: flex;
   gap: 8px;
 }
 
@@ -1052,46 +1065,43 @@ export default {
   background: #f8f9fa;
   border: 1px solid #dee2e6;
   color: #495057;
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 10px 16px;
+  border-radius: 8px;
   cursor: pointer;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 0.9rem;
+  font-weight: 500;
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
 .nav-btn:hover:not(:disabled) {
   background: #e9ecef;
-  border-color: #adb5bd;
+  border-color: #549f74;
+  color: #549f74;
+}
+
+.nav-btn:active:not(:disabled) {
+  background: #dee2e6;
 }
 
 .nav-btn:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.4;
   background: #f1f3f5;
   border-color: #dee2e6;
 }
 
-.prev-btn,
-.next-btn {
-  padding: 8px 12px;
-  font-size: 18px;
+.back-btn {
+  background: #549f74;
+  color: white;
+  border-color: #549f74;
 }
 
-.flight-header h1 {
-  margin: 0;
-  color: #549f74;
-  text-align: center;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-  flex-shrink: 0;
+.back-btn:hover {
+  background: #448060;
+  border-color: #448060;
+  color: white;
 }
 
 .info-grid {
@@ -1300,28 +1310,71 @@ export default {
   cursor: not-allowed;
 }
 
+/* Bottom Actions */
+.bottom-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.bottom-actions .action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* IGC filename styling */
+.igc-filename {
+  word-break: break-all;
+  font-size: 0.85rem;
+}
+
 @media (max-width: 768px) {
   .flight-detail {
-    padding: 15px;
+    padding: 10px;
   }
 
   .flight-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
+    margin-bottom: 15px;
+    padding-bottom: 12px;
   }
 
   .flight-header h1 {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
+    margin-bottom: 10px;
+  }
+
+  .flight-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .nav-btn {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+
+  .back-btn {
+    flex: 0 0 auto;
+  }
+
+  .nav-arrows {
+    flex: 1;
+    justify-content: flex-end;
   }
 
   .info-grid {
     grid-template-columns: 1fr;
-    gap: 15px;
+    gap: 12px;
   }
 
   .info-card {
-    padding: 15px;
+    padding: 12px;
   }
 
   .info-row {
@@ -1335,6 +1388,18 @@ export default {
   }
 
   .action-btn {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+
+  .bottom-actions {
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 15px;
+  }
+
+  .bottom-actions .action-btn {
     width: 100%;
   }
 }
