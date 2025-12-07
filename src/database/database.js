@@ -424,6 +424,34 @@ export const maintenanceOperations = {
     }
     return webMaintenanceOperations.getAll();
   },
+  getByGearId: async (gearId) => {
+    if (isNativePlatform()) {
+      return nativeMaintenanceOperations.getByGearId(gearId);
+    }
+    // Web version - not implemented yet, using API directly in component
+    return [];
+  },
+  add: async (gearId, maintenance) => {
+    if (isNativePlatform()) {
+      return nativeMaintenanceOperations.add(gearId, maintenance);
+    }
+    // Web version - not implemented yet, using API directly in component
+    throw new Error("Web maintenance add not implemented");
+  },
+  update: async (id, maintenance) => {
+    if (isNativePlatform()) {
+      return nativeMaintenanceOperations.update(id, maintenance);
+    }
+    // Web version - not implemented yet, using API directly in component
+    throw new Error("Web maintenance update not implemented");
+  },
+  delete: async (id) => {
+    if (isNativePlatform()) {
+      return nativeMaintenanceOperations.delete(id);
+    }
+    // Web version - not implemented yet, using API directly in component
+    throw new Error("Web maintenance delete not implemented");
+  },
 };
 
 // Compatibility aliases for existing code

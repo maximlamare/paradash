@@ -26,7 +26,7 @@
         <form @submit.prevent="addGear" class="gear-form">
           <div class="form-group">
             <label for="gearType">Gear Type</label>
-            <select id="gearType" v-model="newGear.type" required>
+            <select id="gearType" v-model="newGear.type" required class="form-control">
               <option value="">Select gear type</option>
               <option value="gliders">Glider</option>
               <option value="harnesses">Harness</option>
@@ -42,6 +42,7 @@
               v-model="newGear.manufacturer"
               required
               placeholder="e.g., Ozone, Advance"
+              class="form-control"
             />
           </div>
 
@@ -53,6 +54,7 @@
               v-model="newGear.model"
               required
               placeholder="e.g., Rush 6, Epsilon 9"
+              class="form-control"
             />
           </div>
 
@@ -62,6 +64,7 @@
               type="date"
               id="manufacturingDate"
               v-model="newGear.manufacturingDate"
+              class="form-control"
             />
           </div>
 
@@ -71,6 +74,7 @@
               type="date"
               id="purchaseDate"
               v-model="newGear.purchaseDate"
+              class="form-control"
             />
           </div>
 
@@ -773,31 +777,58 @@ export default {
   padding: 24px;
 }
 
-/* Form styles inherited from global */
-.form-group input,
-.form-group select {
-  font-size: 0.9rem;
+/* Select dropdown styling to match Add Flight */
+.gear-form select.form-control {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20256%20256%22%3E%3Cpath%20fill%3D%22%23549f74%22%20d%3D%22M208.5%2096.5l-80%2080a12%2012%200%2001-17%200l-80-80a12%2012%200%2001%2017-17L128%20151l71.5-71.5a12%2012%200%2001%2017%2017z%22%2F%3E%3C%2Fsvg%3E');
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 40px;
+  cursor: pointer;
 }
 
 .modal-actions {
+  display: flex;
+  gap: 12px;
   justify-content: flex-end;
   padding-top: 20px;
   border-top: 1px solid #eee;
-}
-
-.cancel-btn,
-.submit-btn {
-  padding: 10px 20px;
-  font-size: 0.9rem;
+  margin-top: 10px;
 }
 
 .cancel-btn {
   background: #f8f9fa;
-  color: #666;
+  color: #495057;
+  border: 1px solid #dee2e6;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .cancel-btn:hover {
   background: #e9ecef;
+}
+
+.submit-btn {
+  background: #549f74;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submit-btn:hover {
+  background: #448060;
 }
 
 .gear-category {
