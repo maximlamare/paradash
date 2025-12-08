@@ -7,14 +7,17 @@
         <label>IGC Flight Log (Optional)</label>
         <div class="igc-upload-area">
           <div v-if="!uploadedIGC.file" class="upload-input-section">
-            <input
-              ref="fileInput"
-              type="file"
-              accept=".igc"
-              @change="handleFileSelect"
-              class="form-control file-input"
-            />
-            <p class="upload-hint">Upload an IGC file</p>
+            <label class="file-input-label">
+              <input
+                ref="fileInput"
+                type="file"
+                accept=".igc"
+                @change="handleFileSelect"
+                class="file-input-hidden"
+              />
+              <span class="file-input-btn">Choose IGC File</span>
+            </label>
+            <p class="upload-hint">Select an IGC file to auto-fill flight data</p>
           </div>
 
           <div v-else class="igc-file-confirmation">
@@ -35,25 +38,6 @@
               >
                 Remove
               </button>
-            </div>
-
-            <div v-if="uploadedIGC.fileExists" class="file-conflict-warning">
-              <div class="warning-icon">⚠️</div>
-              <div class="warning-text">
-                <p><strong>Similar IGC file already exists!</strong></p>
-                <div class="conflict-actions">
-                  <button
-                    type="button"
-                    @click="overwriteExisting"
-                    class="btn-overwrite"
-                  >
-                    Overwrite Existing
-                  </button>
-                  <button type="button" @click="keepBoth" class="btn-keep-both">
-                    Keep Both Files
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -130,11 +114,13 @@
               <input
                 type="number"
                 id="durationHours"
-                v-model.number="durationHours"
+                v-model="durationHoursInput"
                 min="0"
                 max="23"
                 class="form-control duration-input"
                 placeholder="0"
+                @focus="clearIfZero('hours')"
+                @blur="restoreIfEmpty('hours')"
               />
               <label class="duration-label">hours</label>
             </div>
@@ -142,11 +128,13 @@
               <input
                 type="number"
                 id="durationMinutes"
-                v-model.number="durationMinutes"
+                v-model="durationMinutesInput"
                 min="0"
                 max="59"
                 class="form-control duration-input"
                 placeholder="0"
+                @focus="clearIfZero('minutes')"
+                @blur="restoreIfEmpty('minutes')"
               />
               <label class="duration-label">minutes</label>
             </div>
@@ -323,65 +311,7 @@
         </button>
       </div>
 
-      <!-- Confirmation Dialog -->
-      <div v-if="showConfirmation" class="confirmation-overlay">
-        <div class="confirmation-dialog">
-          <h3>Confirm Flight Details</h3>
-          <div class="confirmation-content">
-            <p><strong>Category:</strong> {{ flight.category }}</p>
-            <p><strong>Type:</strong> {{ flight.type }}</p>
-            <p><strong>Date:</strong> {{ formatDate(flight.date) }}</p>
-            <p><strong>Start Time:</strong> {{ flight.startTime }}</p>
-            <p><strong>Duration:</strong> {{ flightDuration }}</p>
-            <p>
-              <strong>Takeoff:</strong> {{ flight.startLocation }}
-              {{ flight.startCountry ? `(${flight.startCountry})` : "" }}
-            </p>
-            <p>
-              <strong>Landing:</strong> {{ flight.endLocation }}
-              {{ flight.endCountry ? `(${flight.endCountry})` : "" }}
-            </p>
-            <p v-if="flight.gliderId">
-              <strong>Glider:</strong> {{ getGliderName(flight.gliderId) }}
-            </p>
-            <p v-if="uploadedIGC.originalName">
-              <strong>IGC File:</strong> {{ uploadedIGC.originalName }}
-            </p>
-            <div v-if="getValidLinks().length > 0" class="confirmation-links">
-              <p><strong>Links:</strong></p>
-              <ul class="links-list">
-                <li
-                  v-for="(link, index) in getValidLinks()"
-                  :key="index"
-                  class="link-item"
-                >
-                  {{ link }}
-                </li>
-              </ul>
-            </div>
-            <p v-if="flight.comments">
-              <strong>Comments:</strong> {{ flight.comments }}
-            </p>
-          </div>
-          <div class="confirmation-actions">
-            <button
-              @click="confirmSubmit"
-              class="btn btn-primary"
-              :disabled="isSubmitting"
-            >
-              {{ isSubmitting ? "Adding..." : "Confirm & Add Flight" }}
-            </button>
-            <button
-              @click="cancelSubmit"
-              class="btn btn-secondary"
-              :disabled="isSubmitting"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </form>
+      </form>
 
     <div v-if="successMessage" class="success-message">
       {{ successMessage }}
@@ -396,7 +326,10 @@
 <script>
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
+import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
+import IGCParser from "igc-parser";
 import { flightOperations, gearOperations } from "../database/database.js";
+import { calculateIGCDistances } from "../utils/igcUtils.js";
 import countries from "../data/countries.json";
 import { formatDateWithWeekday as formatDate } from "../utils/dateUtils.js";
 
@@ -421,9 +354,29 @@ export default {
 
     const durationHours = ref(0);
     const durationMinutes = ref(0);
+    const durationHoursInput = ref("");
+    const durationMinutesInput = ref("");
 
-    // Confirmation dialog state
-    const showConfirmation = ref(false);
+    // Duration input handlers for better UX
+    const clearIfZero = (field) => {
+      if (field === "hours" && durationHoursInput.value === "0") {
+        durationHoursInput.value = "";
+      } else if (field === "minutes" && durationMinutesInput.value === "0") {
+        durationMinutesInput.value = "";
+      }
+    };
+
+    const restoreIfEmpty = (field) => {
+      if (field === "hours") {
+        const val = parseInt(durationHoursInput.value) || 0;
+        durationHours.value = val;
+        durationHoursInput.value = val.toString();
+      } else if (field === "minutes") {
+        const val = parseInt(durationMinutesInput.value) || 0;
+        durationMinutes.value = val;
+        durationMinutesInput.value = val.toString();
+      }
+    };
 
     // IGC file upload state
     const uploadedIGC = ref({
@@ -437,8 +390,6 @@ export default {
       gliderType: "",
       gliderSerial: "",
       totalFixes: 0,
-      fileExists: false,
-      existingFiles: [],
     });
 
     const igcData = computed(() => uploadedIGC.value);
@@ -453,63 +404,148 @@ export default {
       }
     };
 
-    const uploadIGCFile = async (file) => {
+    // Parse IGC content and extract flight data (client-side)
+    const parseIGCContent = (igcContent, originalName) => {
       try {
-        console.log("Starting IGC file upload:", file.name, "Size:", file.size);
-        igcUploadError.value = "";
-        const formData = new FormData();
-        formData.append("igcFile", file);
+        const flight = IGCParser.parse(igcContent);
 
-        console.log(
-          "Sending request to:",
-          "http://localhost:3001/api/igc/upload"
-        );
-        const response = await fetch("http://localhost:3001/api/igc/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        console.log("Response status:", response.status, response.statusText);
-        const result = await response.json();
-        console.log("Upload result:", result);
-
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to upload IGC file");
+        if (!flight || !flight.fixes || flight.fixes.length === 0) {
+          throw new Error("Invalid IGC file or no GPS fixes found");
         }
 
-        console.log("IGC file uploaded successfully:", result.filePath);
+        const firstFix = flight.fixes[0];
+        const lastFix = flight.fixes[flight.fixes.length - 1];
+
+        let startTime, endTime, flightDate, duration;
+
+        if (firstFix.timestamp) {
+          const startDate = new Date(firstFix.timestamp);
+          const endDate = new Date(lastFix.timestamp);
+
+          startTime = `${String(startDate.getHours()).padStart(2, "0")}:${String(
+            startDate.getMinutes()
+          ).padStart(2, "0")}`;
+          endTime = `${String(endDate.getHours()).padStart(2, "0")}:${String(
+            endDate.getMinutes()
+          ).padStart(2, "0")}`;
+          flightDate = startDate.toISOString().split("T")[0];
+
+          const durationMs = endDate.getTime() - startDate.getTime();
+          const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+          const durationMins = Math.floor(
+            (durationMs % (1000 * 60 * 60)) / (1000 * 60)
+          );
+          duration = `${String(durationHours).padStart(2, "0")}:${String(
+            durationMins
+          ).padStart(2, "0")}`;
+        } else if (firstFix.time) {
+          const timeToString = (timeObj) => {
+            const hours = timeObj.hours || timeObj.hour || 0;
+            const minutes = timeObj.minutes || timeObj.minute || 0;
+            return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+              2,
+              "0"
+            )}`;
+          };
+
+          startTime = timeToString(firstFix.time);
+          endTime = timeToString(lastFix.time);
+
+          const startMinutes =
+            (firstFix.time.hours || 0) * 60 + (firstFix.time.minutes || 0);
+          const endMinutes =
+            (lastFix.time.hours || 0) * 60 + (lastFix.time.minutes || 0);
+          const durationTotalMinutes = Math.max(0, endMinutes - startMinutes);
+          const durationHrs = Math.floor(durationTotalMinutes / 60);
+          const durationMins = durationTotalMinutes % 60;
+          duration = `${String(durationHrs).padStart(2, "0")}:${String(
+            durationMins
+          ).padStart(2, "0")}`;
+
+          flightDate = flight.date || new Date().toISOString().split("T")[0];
+        } else {
+          throw new Error("Unable to parse time information from IGC file");
+        }
+
+        // Calculate max altitude
+        let maxAltitude = 0;
+        for (const fix of flight.fixes) {
+          if (fix.gpsAltitude && fix.gpsAltitude > maxAltitude) {
+            maxAltitude = fix.gpsAltitude;
+          }
+        }
+
+        return {
+          startTime,
+          endTime,
+          duration,
+          date: flightDate,
+          pilotName: flight.pilot || "",
+          gliderType: flight.gliderType || "",
+          gliderSerial: flight.gliderSerial || "",
+          totalFixes: flight.fixes.length,
+          fixes: flight.fixes, // Include fixes for distance calculation
+          maxAltitude,
+          valid: true,
+        };
+      } catch (error) {
+        console.error("Error parsing IGC file:", error);
+        throw new Error(`Failed to parse IGC file: ${error.message}`);
+      }
+    };
+
+    const uploadIGCFile = async (file) => {
+      try {
+        igcUploadError.value = "";
+
+        // Parse locally and store with Filesystem
+        const fileContent = await readFileAsText(file);
+        const igcData = parseIGCContent(fileContent, file.name);
+        
+        // Calculate distances from IGC content
+        const distances = calculateIGCDistances(fileContent);
+
+        // Store IGC file in app's documents directory (use original filename)
+        const fileName = file.name;
+        await Filesystem.writeFile({
+          path: `igc/${fileName}`,
+          data: fileContent,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,
+          recursive: true,
+        });
 
         // Store IGC data
         uploadedIGC.value = {
           file: file,
-          originalName: result.originalName,
-          filePath: result.filePath,
-          startTime: result.igcData.startTime,
-          duration: result.igcData.duration,
-          date: result.igcData.date,
-          pilotName: result.igcData.pilotName,
-          gliderType: result.igcData.gliderType,
-          gliderSerial: result.igcData.gliderSerial,
-          totalFixes: result.igcData.totalFixes,
-          fileExists: result.fileExists,
-          existingFiles: result.existingFiles || [],
+          originalName: file.name,
+          filePath: fileName,
+          startTime: igcData.startTime,
+          duration: igcData.duration,
+          date: igcData.date,
+          pilotName: igcData.pilotName,
+          gliderType: igcData.gliderType,
+          gliderSerial: igcData.gliderSerial,
+          totalFixes: igcData.totalFixes,
+          trackDistance: distances.trackDistance,
+          straightDistance: distances.straightDistance,
+          maxAltitude: distances.maxAltitude || igcData.maxAltitude,
+          igcContent: fileContent,
         };
 
         // Auto-populate form fields
-        if (result.igcData.date) {
-          flight.value.date = result.igcData.date;
+        if (igcData.date) {
+          flight.value.date = igcData.date;
         }
-
-        if (result.igcData.startTime) {
-          flight.value.startTime = result.igcData.startTime;
+        if (igcData.startTime) {
+          flight.value.startTime = igcData.startTime;
         }
-
-        if (result.igcData.duration) {
-          const [hours, minutes] = result.igcData.duration
-            .split(":")
-            .map(Number);
+        if (igcData.duration) {
+          const [hours, minutes] = igcData.duration.split(":").map(Number);
           durationHours.value = hours;
           durationMinutes.value = minutes;
+          durationHoursInput.value = hours.toString();
+          durationMinutesInput.value = minutes.toString();
         }
       } catch (error) {
         console.error("IGC upload error:", error);
@@ -530,21 +566,32 @@ export default {
           gliderType: "",
           gliderSerial: "",
           totalFixes: 0,
-          fileExists: false,
-          existingFiles: [],
         };
       }
+    };
+
+    // Helper function to read file as text
+    const readFileAsText = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(new Error("Failed to read file"));
+        reader.readAsText(file);
+      });
     };
 
     const removeIGCFile = async () => {
       try {
         if (uploadedIGC.value.filePath) {
-          await fetch(
-            `http://localhost:3001/api/igc/${uploadedIGC.value.filePath}`,
-            {
-              method: "DELETE",
-            }
-          );
+          // Delete from local filesystem
+          try {
+            await Filesystem.deleteFile({
+              path: `igc/${uploadedIGC.value.filePath}`,
+              directory: Directory.Documents,
+            });
+          } catch (e) {
+            // File may not exist, ignore
+          }
         }
       } catch (error) {
         console.error("Error removing IGC file:", error);
@@ -562,8 +609,6 @@ export default {
         gliderType: "",
         gliderSerial: "",
         totalFixes: 0,
-        fileExists: false,
-        existingFiles: [],
       };
 
       // Clear file input
@@ -572,46 +617,6 @@ export default {
       }
 
       igcUploadError.value = "";
-    };
-
-    const overwriteExisting = async () => {
-      try {
-        if (
-          uploadedIGC.value.existingFiles &&
-          uploadedIGC.value.existingFiles.length > 0
-        ) {
-          const oldFilename = uploadedIGC.value.existingFiles[0];
-          const formData = new FormData();
-          formData.append("igcFile", uploadedIGC.value.file);
-
-          const response = await fetch(
-            `http://localhost:3001/api/igc/replace/${oldFilename}`,
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(result.error || "Failed to replace IGC file");
-          }
-
-          uploadedIGC.value.filePath = result.filePath;
-          uploadedIGC.value.fileExists = false;
-          uploadedIGC.value.existingFiles = [];
-        }
-      } catch (error) {
-        console.error("Error overwriting IGC file:", error);
-        igcUploadError.value = error.message;
-      }
-    };
-
-    const keepBoth = () => {
-      // Just clear the conflict warning - the new file is already uploaded with a unique name
-      uploadedIGC.value.fileExists = false;
-      uploadedIGC.value.existingFiles = [];
     };
 
     // Computed property to format duration as HH:MM
@@ -726,25 +731,18 @@ export default {
       ).padStart(2, "0")}`;
     };
 
-    // Submit the flight form (shows confirmation first)
+    // Submit the flight form directly
     const submitFlight = async () => {
-      // Validate duration before showing confirmation
+      // Parse duration inputs
+      durationHours.value = parseInt(durationHoursInput.value) || 0;
+      durationMinutes.value = parseInt(durationMinutesInput.value) || 0;
+
+      // Validate duration
       if (durationHours.value === 0 && durationMinutes.value === 0) {
         errorMessage.value = "Flight duration must be greater than 0";
         return;
       }
 
-      // Show confirmation dialog
-      showConfirmation.value = true;
-    };
-
-    // Cancel the submission
-    const cancelSubmit = () => {
-      showConfirmation.value = false;
-    };
-
-    // Confirm and actually submit the flight
-    const confirmSubmit = async () => {
       try {
         isSubmitting.value = true;
         errorMessage.value = "";
@@ -782,12 +780,14 @@ export default {
           comments: flight.value.comments || "",
           igcFilePath: uploadedIGC.value.filePath || null,
           igcSerial: uploadedIGC.value.gliderSerial || null,
+          trackDistance: uploadedIGC.value.trackDistance || null,
+          straightDistance: uploadedIGC.value.straightDistance || null,
+          maxAltitude: uploadedIGC.value.maxAltitude || null,
         };
 
         await flightOperations.add(flightData);
 
         successMessage.value = "Flight added successfully!";
-        showConfirmation.value = false;
         resetForm();
 
         // Redirect to flights list after a short delay
@@ -841,6 +841,8 @@ export default {
       };
       durationHours.value = 0;
       durationMinutes.value = 0;
+      durationHoursInput.value = "";
+      durationMinutesInput.value = "";
       errorMessage.value = "";
       successMessage.value = "";
 
@@ -856,8 +858,6 @@ export default {
         gliderType: "",
         gliderSerial: "",
         totalFixes: 0,
-        fileExists: false,
-        existingFiles: [],
       };
 
       // Clear IGC upload error
@@ -879,6 +879,8 @@ export default {
       flight,
       durationHours,
       durationMinutes,
+      durationHoursInput,
+      durationMinutesInput,
       flightDuration,
       categories,
       sportTypes,
@@ -894,13 +896,12 @@ export default {
       removeLink,
       submitFlight,
       resetForm,
-      // Confirmation dialog
-      showConfirmation,
-      confirmSubmit,
-      cancelSubmit,
       formatDate,
       getGliderName,
       getValidLinks,
+      // Duration input handlers
+      clearIfZero,
+      restoreIfEmpty,
       // IGC upload functionality
       uploadedIGC,
       igcData,
@@ -909,8 +910,6 @@ export default {
       handleFileSelect,
       uploadIGCFile,
       removeIGCFile,
-      overwriteExisting,
-      keepBoth,
     };
   },
 };
@@ -959,6 +958,10 @@ export default {
 .duration-input {
   width: 80px;
   text-align: center;
+}
+
+.duration-input::placeholder {
+  color: #adb5bd;
 }
 
 .duration-label {
@@ -1032,7 +1035,7 @@ export default {
 
 /* IGC Upload Styles */
 .igc-upload-area {
-  min-height: 80px;
+  min-height: 60px;
 }
 
 .upload-input-section {
@@ -1040,11 +1043,33 @@ export default {
   padding: 15px;
 }
 
-.file-input {
-  margin-bottom: 10px;
-  max-width: 300px;
-  margin: 0 auto 10px auto;
-  display: block;
+.file-input-hidden {
+  display: none;
+}
+
+.file-input-label {
+  display: inline-block;
+  cursor: pointer;
+}
+
+.file-input-btn {
+  display: inline-block;
+  padding: 10px 20px;
+  background: #549f74;
+  color: white;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.file-input-btn:hover {
+  background: #448060;
+}
+
+.file-input-btn:active {
+  background: #3a7055;
 }
 
 .upload-hint {
@@ -1219,77 +1244,4 @@ export default {
   }
 }
 
-/* Confirmation Dialog Specific Styles */
-.confirmation-dialog {
-  padding: 30px;
-  max-width: 500px;
-}
-
-.confirmation-dialog h3 {
-  color: #549f74;
-  margin-bottom: 20px;
-  text-align: center;
-  font-size: 1.5rem;
-}
-
-.confirmation-content {
-  margin-bottom: 25px;
-}
-
-.confirmation-content p {
-  margin: 8px 0;
-  padding: 5px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.confirmation-content p:last-child {
-  border-bottom: none;
-}
-
-.confirmation-content strong {
-  color: #333;
-  min-width: 120px;
-  display: inline-block;
-}
-
-.confirmation-links {
-  margin-top: 15px;
-}
-
-.links-list {
-  list-style: none;
-  padding: 0;
-  margin: 5px 0 0 120px;
-}
-
-.link-item {
-  margin-bottom: 5px;
-  color: #1976d2;
-  word-break: break-all;
-}
-
-.confirmation-actions {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-}
-
-.confirmation-actions .btn {
-  padding: 12px 20px;
-}
-
-@media (max-width: 768px) {
-  .confirmation-dialog {
-    margin: 20px;
-    padding: 20px;
-  }
-
-  .confirmation-actions {
-    flex-direction: column;
-  }
-
-  .confirmation-actions .btn {
-    width: 100%;
-  }
-}
 </style>

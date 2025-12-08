@@ -48,16 +48,16 @@ export function formatDateWithWeekday(dateString) {
 }
 
 /**
- * Format a date string to short format (e.g., "Jan 15, 2024")
+ * Format a date string to short format (DD.MM.YYYY)
  * @param {string} dateString - ISO date string
  * @returns {string} Formatted date
  */
 export function formatDateShort(dateString) {
+  if (!dateString) return "";
   const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
 }
 

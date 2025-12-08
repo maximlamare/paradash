@@ -251,7 +251,7 @@
             <input
               type="file"
               ref="backupFileInput"
-              accept=".zip"
+              accept=".zip,application/zip,application/x-zip-compressed"
               @change="handleBackupFileSelect"
               class="file-input"
               style="display: none"
@@ -328,7 +328,11 @@ import {
   flightOperations,
   getAllGear,
   getAllMaintenance,
+  wipeAllData,
 } from "../database/database.js";
+import { importFromJson } from "../database/capacitorDatabase.js";
+import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 
 export default {
   name: "Settings",
@@ -532,44 +536,113 @@ export default {
 
     async exportAllData() {
       this.isExporting = true;
-
+      
       try {
-        const response = await fetch("http://localhost:3001/api/export/full");
+        // Get all data from database
+        const flights = await flightOperations.getAllFlights();
+        const gear = await getAllGear();
+        const maintenance = await getAllMaintenance();
+
+        // Export database
+        const dbExport = await flightOperations.exportDatabase();
+
+        // Dynamically import JSZip only when needed
+        const { default: JSZip } = await import('jszip');
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        // Create ZIP file
+        const zip = new JSZip();
+
+        // Add database export
+        if (dbExport.success && dbExport.data) {
+          zip.file('database.json', JSON.stringify(dbExport.data, null, 2));
         }
 
-        // Get filename from Content-Disposition header
-        const contentDisposition = response.headers.get("content-disposition");
-        let filename = "paradash_backup.zip";
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(
-            /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
-          );
-          if (filenameMatch && filenameMatch[1]) {
-            filename = filenameMatch[1].replace(/['"]/g, "");
+        // Add settings
+        const settings = {
+          version: "1.0",
+          exportDate: new Date().toISOString(),
+          flightCategories: JSON.parse(localStorage.getItem("flightCategories") || JSON.stringify(this.flightCategories)),
+          flightTypes: JSON.parse(localStorage.getItem("flightTypes") || JSON.stringify(this.flightTypes)),
+          maintenanceCategories: JSON.parse(localStorage.getItem("maintenanceCategories") || JSON.stringify(this.maintenanceCategories)),
+          gliderWarningDuration: localStorage.getItem("gliderWarningDuration") || this.gliderWarningDuration,
+          gliderWarningFlightTime: localStorage.getItem("gliderWarningFlightTime") || this.gliderWarningFlightTime,
+          rescueWarningDuration: localStorage.getItem("rescueWarningDuration") || this.rescueWarningDuration,
+        };
+        zip.file('settings.json', JSON.stringify(settings, null, 2));
+
+        // Add all IGC files
+        let igcCount = 0;
+        const igcFolder = zip.folder('igc');
+        for (const flight of flights) {
+          if (flight.igcFilePath) {
+            try {
+              const fileContent = await Filesystem.readFile({
+                path: `igc/${flight.igcFilePath}`,
+                directory: Directory.Documents,
+                encoding: Encoding.UTF8,
+              });
+              igcFolder.file(flight.igcFilePath, fileContent.data);
+              igcCount++;
+            } catch (error) {
+              console.warn(`Could not read IGC file ${flight.igcFilePath}:`, error);
+            }
           }
         }
 
-        // Create blob and download
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+        // Add all attachment files
+        let attachmentCount = 0;
+        const attachmentsFolder = zip.folder('attachments');
+        for (const record of maintenance) {
+          if (record.attachment_path && record.attachment_filename) {
+            try {
+              const fileContent = await Filesystem.readFile({
+                path: record.attachment_path,
+                directory: Directory.Documents,
+              });
+              // Use the original filename
+              attachmentsFolder.file(record.attachment_filename, fileContent.data, { base64: true });
+              attachmentCount++;
+            } catch (error) {
+              console.warn(`Could not read attachment ${record.attachment_path}:`, error);
+            }
+          }
+        }
 
+        // Generate ZIP file as base64
+        const zipBlob = await zip.generateAsync({ type: 'base64' });
+
+        // Create filename with timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+        const filename = `paradash-backup-${timestamp}.zip`;
+
+        // Write ZIP to cache directory
+        await Filesystem.writeFile({
+          path: filename,
+          data: zipBlob,
+          directory: Directory.Cache,
+        });
+        
+        // Get the file URI for sharing
+        const fileUri = await Filesystem.getUri({
+          path: filename,
+          directory: Directory.Cache,
+        });
+        
+        // Share the file - user can choose where to save it
+        await Share.share({
+          title: 'Save ParaDash Backup',
+          text: `Complete backup: database, ${igcCount} IGC files, ${attachmentCount} attachments`,
+          url: fileUri.uri,
+          dialogTitle: 'Save Backup File',
+        });
+        
         this.showMessage(
-          `Successfully exported all data (${this.flightCount} flights, ${this.gearCount} gear, ${this.maintenanceCount} maintenance records, and all IGC files)`,
+          `Backup created: ${flights.length} flights, ${igcCount} IGC files, ${attachmentCount} attachments`,
           "success"
         );
       } catch (error) {
-        console.error("Export error:", error);
-        this.showMessage("Error during export: " + error.message, "error");
+        console.error("Error exporting data:", error);
+        this.showMessage(`Export failed: ${error.message}`, "error");
       } finally {
         this.isExporting = false;
       }
@@ -577,70 +650,189 @@ export default {
 
     handleBackupFileSelect(event) {
       const file = event.target.files[0];
+      
       if (file) {
-        // Validate file extension
-        if (!file.name.toLowerCase().endsWith('.zip')) {
-          this.showMessage("Invalid file format. Please select a ZIP backup file.", "error");
+        // Validate file - check both extension and MIME type
+        const fileName = file.name.toLowerCase();
+        const fileType = file.type.toLowerCase();
+        const isZipExtension = fileName.endsWith('.zip');
+        const isZipMimeType = fileType === 'application/zip' || 
+                               fileType === 'application/x-zip-compressed' ||
+                               fileType === 'application/x-zip';
+        
+        // Accept if either extension or MIME type indicates ZIP, or if no type info (mobile issue)
+        if (!isZipExtension && !isZipMimeType && fileType !== '') {
+          const msg = `Invalid file format.\nFile: ${file.name}\nType: ${file.type}\nPlease select a ZIP backup file.`;
+          this.showMessage(msg, "error");
+          alert(msg);
           event.target.value = "";
           return;
         }
+        
         this.selectedBackupFile = file;
+        this.showMessage(`Selected: ${file.name}`, "success");
       }
     },
 
     async importBackup() {
       if (!this.selectedBackupFile) {
-        this.showMessage("Please select a backup file to import", "error");
+        const msg = "Please select a backup file first";
+        this.showMessage(msg, "error");
+        alert(msg);
         return;
       }
 
-      // Confirm with user
-      if (
-        !confirm(
-          "⚠️ WARNING: This will replace ALL existing data including flights, gear, maintenance records, and IGC files.\n\nAre you sure you want to continue?"
-        )
-      ) {
+      // Confirmation dialog
+      const confirmed = window.confirm(
+        "⚠️ WARNING: This will replace ALL existing data with the backup.\n\n" +
+        "Current data will be permanently deleted. Make sure you have exported your current data first if needed.\n\n" +
+        "Continue with import?"
+      );
+
+      if (!confirmed) {
         return;
       }
 
       this.isImporting = true;
+      this.showMessage('Starting import...', 'success');
 
       try {
-        const formData = new FormData();
-        formData.append("backup", this.selectedBackupFile);
+        // Dynamically import JSZip
+        const { default: JSZip } = await import('jszip');
 
-        const response = await fetch(
-          "http://localhost:3001/api/import/full",
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
+        // Read the file
+        const fileReader = new FileReader();
+        
+        const zipData = await new Promise((resolve, reject) => {
+          fileReader.onload = (e) => resolve(e.target.result);
+          fileReader.onerror = (e) => reject(e);
+          fileReader.readAsArrayBuffer(this.selectedBackupFile);
+        });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to import backup");
+        // Load ZIP
+        const zip = await JSZip.loadAsync(zipData);
+
+        // Wipe existing data first
+        await wipeAllData();
+
+        // Import database
+        this.showMessage('Importing database...', 'success');
+        
+        const dbFile = zip.file('database.json');
+        if (!dbFile) {
+          throw new Error('database.json not found in backup ZIP file');
+        }
+        
+        const dbContent = await dbFile.async('string');
+        
+        // Import using the database's import function
+        // The database.json is already in the correct format from exportToJson
+        try {
+          await importFromJson(dbContent);
+        } catch (dbError) {
+          console.error('Database import failed:', dbError);
+          throw new Error(`Database import failed: ${dbError.message}`);
         }
 
-        const result = await response.json();
-        this.showMessage(
-          `Backup imported successfully! ${
-            result.imported.flights || 0
-          } flights, ${result.imported.gear || 0} gear items, ${
-            result.imported.maintenance || 0
-          } maintenance records, and ${result.imported.igcFiles || 0} IGC files.`,
-          "success"
-        );
+        // Import settings
+        const settingsFile = zip.file('settings.json');
+        if (settingsFile) {
+          const settingsContent = await settingsFile.async('string');
+          const settings = JSON.parse(settingsContent);
+          
+          // Restore settings to localStorage
+          if (settings.flightCategories) {
+            localStorage.setItem('flightCategories', JSON.stringify(settings.flightCategories));
+            this.flightCategories = settings.flightCategories;
+          }
+          if (settings.flightTypes) {
+            localStorage.setItem('flightTypes', JSON.stringify(settings.flightTypes));
+            this.flightTypes = settings.flightTypes;
+          }
+          if (settings.maintenanceCategories) {
+            localStorage.setItem('maintenanceCategories', JSON.stringify(settings.maintenanceCategories));
+            this.maintenanceCategories = settings.maintenanceCategories;
+          }
+          if (settings.gliderWarningDuration) {
+            localStorage.setItem('gliderWarningDuration', settings.gliderWarningDuration.toString());
+            this.gliderWarningDuration = settings.gliderWarningDuration;
+          }
+          if (settings.gliderWarningFlightTime) {
+            localStorage.setItem('gliderWarningFlightTime', settings.gliderWarningFlightTime.toString());
+            this.gliderWarningFlightTime = settings.gliderWarningFlightTime;
+          }
+          if (settings.rescueWarningDuration) {
+            localStorage.setItem('rescueWarningDuration', settings.rescueWarningDuration.toString());
+            this.rescueWarningDuration = settings.rescueWarningDuration;
+          }
+        }
 
-        // Reset file selection
-        this.selectedBackupFile = null;
-        this.$refs.backupFileInput.value = "";
+        // Import IGC files
+        let igcCount = 0;
+        for (const filename in zip.files) {
+          if (filename.startsWith('igc/') && !zip.files[filename].dir) {
+            try {
+              const igcFile = zip.file(filename);
+              const igcContent = await igcFile.async('string');
+              const igcFilename = filename.replace('igc/', '');
+              
+              // Write IGC file to Documents
+              await Filesystem.writeFile({
+                path: `igc/${igcFilename}`,
+                data: igcContent,
+                directory: Directory.Documents,
+                encoding: Encoding.UTF8,
+                recursive: true,
+              });
+              igcCount++;
+            } catch (error) {
+              console.warn(`Could not import IGC file ${filename}:`, error);
+            }
+          }
+        }
+
+        // Import attachments
+        let attachmentCount = 0;
+        for (const filename in zip.files) {
+          if (filename.startsWith('attachments/') && !zip.files[filename].dir) {
+            try {
+              const attachmentFile = zip.file(filename);
+              const attachmentContent = await attachmentFile.async('base64');
+              const attachmentFilename = filename.replace('attachments/', '');
+              
+              // Write attachment file to Documents
+              await Filesystem.writeFile({
+                path: `attachments/${attachmentFilename}`,
+                data: attachmentContent,
+                directory: Directory.Documents,
+                recursive: true,
+              });
+              attachmentCount++;
+            } catch (error) {
+              console.warn(`Could not import attachment ${filename}:`, error);
+            }
+          }
+        }
 
         // Reload data counts
         await this.loadDataCounts();
+
+        // Clear selected file
+        this.selectedBackupFile = null;
+        this.$refs.backupFileInput.value = '';
+
+        const successMsg = `Import successful! Restored ${igcCount} IGC files and PDF ${attachmentCount} attachments.`;
+        this.showMessage(successMsg, "success");
+        
+        // Show alert and suggest reload
+        alert(successMsg + '\n\nThe app will now reload to show the imported data.');
+        window.location.reload();
+
       } catch (error) {
-        console.error("Import error:", error);
-        this.showMessage("Error during import: " + error.message, "error");
+        console.error("Error importing backup:", error);
+        const errorMsg = `Import failed: ${error.message}`;
+        this.showMessage(errorMsg, "error");
+        alert(errorMsg);
       } finally {
         this.isImporting = false;
       }
@@ -648,60 +840,91 @@ export default {
 
     async wipeDatabase() {
       // First confirmation
-      const firstConfirm = confirm(
-        "⚠️ WARNING: You are about to permanently delete ALL data from the database.\n\n" +
-          "This includes:\n" +
-          "- All flight records\n" +
-          "- All gear items\n" +
-          "- All maintenance records\n" +
-          "- All IGC files\n\n" +
-          "This action CANNOT be undone!\n\n" +
-          "Are you sure you want to continue?"
+      const firstConfirm = window.confirm(
+        "⚠️ WARNING: This will permanently delete ALL your data including flights, gear, maintenance records, and files. This cannot be undone!\n\nAre you sure you want to continue?"
       );
 
       if (!firstConfirm) {
         return;
       }
 
-      // Second confirmation with typing requirement
-      const confirmText = prompt(
-        "To confirm deletion, please type 'DELETE ALL DATA' (case sensitive):"
+      // Second confirmation
+      const secondConfirm = window.confirm(
+        "⚠️ FINAL WARNING: This is your last chance to cancel.\n\nConfirm to permanently delete everything."
       );
 
-      if (confirmText !== "DELETE ALL DATA") {
-        this.showMessage(
-          "Database wipe cancelled - confirmation text did not match",
-          "error"
-        );
+      if (!secondConfirm) {
         return;
       }
 
       this.isWiping = true;
-
       try {
-        const response = await fetch(
-          "http://localhost:3001/api/database/wipe",
-          {
-            method: "POST",
-          }
-        );
+        // Get all data to know what files to delete
+        const flights = await flightOperations.getAllFlights();
+        const maintenance = await getAllMaintenance();
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to wipe database");
+        // Delete all IGC files
+        let deletedIGCFiles = 0;
+        for (const flight of flights) {
+          if (flight.igcFilePath) {
+            try {
+              await Filesystem.deleteFile({
+                path: `igc/${flight.igcFilePath}`,
+                directory: Directory.Documents,
+              });
+              deletedIGCFiles++;
+            } catch (error) {
+              console.warn(`Could not delete IGC file ${flight.igcFilePath}:`, error);
+            }
+          }
         }
 
-        const result = await response.json();
+        // Delete all attachment files
+        let deletedAttachments = 0;
+        for (const record of maintenance) {
+          if (record.attachment_path) {
+            try {
+              await Filesystem.deleteFile({
+                path: record.attachment_path,
+                directory: Directory.Documents,
+              });
+              deletedAttachments++;
+            } catch (error) {
+              console.warn(`Could not delete attachment ${record.attachment_path}:`, error);
+            }
+          }
+        }
+
+        // Delete all database records
+        await wipeAllData();
+
+        // Clear localStorage data
+        localStorage.clear();
+
+        // Reset settings to defaults
+        this.flightCategories = ["On-site", "XC", "H&F"];
+        this.flightTypes = ["Paragliding", "Speedflying"];
+        this.maintenanceCategories = [
+          "Purchase",
+          "Repack",
+          "Repair",
+          "Check / Trim",
+          "Sale",
+        ];
+        this.gliderWarningDuration = 24;
+        this.gliderWarningFlightTime = 100;
+        this.rescueWarningDuration = 12;
+
+        // Update counts
+        await this.loadDataCounts();
+
         this.showMessage(
-          `Database wiped successfully. Deleted ${result.deleted.flights} flights, ${result.deleted.gear} gear items, ${result.deleted.maintenance} maintenance records, and ${result.deleted.igcFiles || 0} IGC files.`,
+          `Database wiped successfully! Deleted ${flights.length} flights, ${deletedIGCFiles} IGC files, and ${deletedAttachments} attachments.`,
           "success"
         );
-
-        // Reload data counts
-        await this.loadDataCounts();
       } catch (error) {
-        console.error("Wipe error:", error);
-        this.showMessage("Error wiping database: " + error.message, "error");
+        console.error("Error wiping database:", error);
+        this.showMessage(`Failed to wipe database: ${error.message}`, "error");
       } finally {
         this.isWiping = false;
       }
@@ -809,21 +1032,57 @@ export default {
   box-shadow: 0 0 0 2px rgba(84, 159, 116, 0.25);
 }
 
-/* Button styles inherited from global */
+/* Button styles - matching Choose IGC File button */
+.btn-primary,
 .btn-success {
-  border-color: #549f74;
+  display: inline-block;
+  padding: 10px 20px;
+  background: #549f74;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-.btn-success:hover {
-  border-color: #448060;
+.btn-primary:hover:not(:disabled),
+.btn-success:hover:not(:disabled) {
+  background: #448060;
+}
+
+.btn-primary:active:not(:disabled),
+.btn-success:active:not(:disabled) {
+  background: #3a7055;
+}
+
+.btn-primary:disabled,
+.btn-success:disabled {
+  background: #a8d4bb;
+  cursor: not-allowed;
+}
+
+.btn-large {
+  padding: 12px 24px;
+  font-size: 1rem;
 }
 
 .btn-secondary {
-  border-color: #6c757d;
+  display: inline-block;
+  padding: 10px 20px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-.btn-secondary:hover {
-  border-color: #545b62;
+.btn-secondary:hover:not(:disabled) {
+  background: #545b62;
 }
 
 .settings-actions {

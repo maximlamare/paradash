@@ -11,9 +11,7 @@
     <div v-else-if="gear" class="gear-content">
       <!-- Header with back button -->
       <div class="header-section">
-        <button @click="$router.push('/gear')" class="back-btn">←</button>
-        <h1>{{ gear.manufacturer }} {{ gear.model }}</h1>
-        <div class="header-spacer"></div>
+        <button @click="$router.push('/gear')" class="back-btn">← Back</button>
       </div>
 
       <!-- Rescue Warning -->
@@ -81,27 +79,16 @@
               <label>Purchase Date:</label>
               <span>{{ formatDate(gear.purchase_date) }}</span>
             </div>
+            <div class="info-item" v-if="gear.serial_number">
+              <label>Serial Number:</label>
+              <span>{{ gear.serial_number }}</span>
+            </div>
+            <div class="info-item" v-if="gear.notes">
+              <label>Notes:</label>
+              <span>{{ gear.notes }}</span>
+            </div>
           </div>
         </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="actions-section">
-        <button
-          @click="toggleRetired"
-          class="action-btn toggle-btn"
-          :class="{ retire: gear.is_active, unretire: !gear.is_active }"
-        >
-          {{ gear.is_active ? "Retire Gear" : "Unretire Gear" }}
-        </button>
-
-        <button @click="showEditModal = true" class="action-btn edit-btn">
-          Edit Gear
-        </button>
-
-        <button @click="showDeleteModal = true" class="action-btn delete-btn">
-          Delete Gear
-        </button>
       </div>
 
       <!-- Success/Error Messages -->
@@ -133,136 +120,44 @@
           keep track of gear servicing.
         </div>
 
-        <div v-else class="maintenance-table-container">
-          <table class="maintenance-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Category</th>
-                <th>Description</th>
-                <th>Attachment</th>
-                <th v-if="isEditMode">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="record in maintenanceRecords" :key="record.id">
-                <td>
-                  <input
-                    v-if="isEditMode && editingRecord === record.id"
-                    v-model="editFormData.date"
-                    type="date"
-                    class="inline-input"
-                  />
-                  <span v-else>{{ formatDate(record.date) }}</span>
-                </td>
-                <td>
-                  <select
-                    v-if="isEditMode && editingRecord === record.id"
-                    v-model="editFormData.category"
-                    class="inline-select"
-                  >
-                    <option
-                      v-for="category in maintenanceCategories"
-                      :key="category"
-                      :value="category"
-                    >
-                      {{ category }}
-                    </option>
-                  </select>
-                  <span v-else class="maintenance-category">{{
-                    record.category
-                  }}</span>
-                </td>
-                <td>
-                  <textarea
-                    v-if="isEditMode && editingRecord === record.id"
-                    v-model="editFormData.description"
-                    class="inline-textarea"
-                    rows="2"
-                  ></textarea>
-                  <span v-else>{{
-                    record.description || "No description"
-                  }}</span>
-                </td>
-                <td>
-                  <div v-if="record.attachment_path" class="attachment-cell">
-                    <button
-                      @click="viewPdf(record.attachment_path)"
-                      class="pdf-btn"
-                      title="View PDF"
-                    >
-                      📄
-                    </button>
-                    <span class="filename">{{
-                      record.attachment_filename
-                    }}</span>
-                    <button
-                      v-if="isEditMode"
-                      @click="removeDocumentFromRecord(record.id)"
-                      class="remove-document-btn"
-                      title="Remove document"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <button
-                    v-else
-                    @click="addDocumentToRecord(record.id)"
-                    class="add-document-btn"
-                  >
-                    Add document
-                  </button>
-                </td>
-                <td v-if="isEditMode" class="edit-actions">
-                  <div
-                    v-if="editingRecord !== record.id"
-                    class="action-buttons"
-                  >
-                    <button
-                      @click="startEditRecord(record)"
-                      class="edit-record-btn"
-                      title="Edit this record"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      @click="deleteMaintenanceRecord(record.id)"
-                      class="delete-record-btn"
-                      title="Delete this record"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                  <div v-else class="edit-buttons">
-                    <button
-                      @click="saveRecord(record.id)"
-                      class="save-btn"
-                      title="Save changes"
-                    >
-                      ✓
-                    </button>
-                    <button
-                      @click="cancelEdit"
-                      class="cancel-btn"
-                      title="Cancel editing"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="table-actions">
-            <button
-              @click="toggleEditMode"
-              class="edit-table-btn"
-              :class="{ active: isEditMode }"
-            >
-              {{ isEditMode ? "Done Editing" : "Edit Table" }}
-            </button>
+        <div v-else class="maintenance-list">
+          <div 
+            v-for="record in maintenanceRecords" 
+            :key="record.id"
+            class="maintenance-item"
+            @click="openMaintenanceDetail(record)"
+          >
+            <div class="maintenance-item-header">
+              <span class="maintenance-date">{{ formatDate(record.date) }}</span>
+              <span class="maintenance-category">{{ record.category }}</span>
+            </div>
+            <div class="maintenance-item-desc">
+              {{ record.description || "No description" }}
+            </div>
+            <div v-if="record.attachment_path" class="maintenance-item-attachment">
+              📄 PDF attached
+            </div>
           </div>
         </div>
+      </div>
+
+      <!-- Action Buttons (at bottom) -->
+      <div class="actions-section-bottom">
+        <button
+          @click="toggleRetired"
+          class="action-btn toggle-btn"
+          :class="{ retire: gear.is_active, unretire: !gear.is_active }"
+        >
+          {{ gear.is_active ? "Retire Gear" : "Unretire Gear" }}
+        </button>
+
+        <button @click="showEditModal = true" class="action-btn edit-btn">
+          Edit Gear
+        </button>
+
+        <button @click="showDeleteModal = true" class="action-btn delete-btn">
+          Delete Gear
+        </button>
       </div>
     </div>
 
@@ -323,6 +218,26 @@
             />
           </div>
 
+          <div class="form-group">
+            <label for="editSerialNumber">Serial Number (Optional)</label>
+            <input
+              type="text"
+              id="editSerialNumber"
+              v-model="editForm.serial_number"
+              placeholder="e.g., SN12345"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="editNotes">Notes (Optional)</label>
+            <textarea
+              id="editNotes"
+              v-model="editForm.notes"
+              placeholder="Any additional notes about this gear..."
+              rows="3"
+            ></textarea>
+          </div>
+
           <div class="form-actions">
             <button type="button" @click="closeEditModal" class="cancel-btn">
               Cancel
@@ -378,6 +293,7 @@
               id="maintenanceDate"
               v-model="maintenanceForm.date"
               required
+              class="form-control"
             />
           </div>
 
@@ -387,6 +303,7 @@
               id="maintenanceCategory"
               v-model="maintenanceForm.category"
               required
+              class="form-control"
             >
               <option value="">Select category</option>
               <option
@@ -406,6 +323,7 @@
               v-model="maintenanceForm.description"
               placeholder="Describe the maintenance work performed..."
               rows="3"
+              class="form-control"
             ></textarea>
           </div>
 
@@ -448,13 +366,147 @@
         </form>
       </div>
     </div>
+
+    <!-- Maintenance Detail Modal -->
+    <div
+      v-if="showMaintenanceDetail"
+      class="modal-overlay"
+      @click="closeMaintenanceDetail"
+    >
+      <div class="modal-content maintenance-detail-modal" @click.stop>
+        <div class="modal-header">
+          <h2>Maintenance Record</h2>
+          <button @click="closeMaintenanceDetail" class="close-btn">
+            &times;
+          </button>
+        </div>
+        <div class="maintenance-detail-content" v-if="selectedMaintenance">
+          <div class="detail-row">
+            <span class="detail-label">Date</span>
+            <span class="detail-value">{{ formatDate(selectedMaintenance.date) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Category</span>
+            <span class="detail-value category-badge">{{ selectedMaintenance.category }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Description</span>
+            <span class="detail-value description">{{ selectedMaintenance.description || "No description" }}</span>
+          </div>
+          
+          <!-- PDF Section -->
+          <div v-if="selectedMaintenance.attachment_path" class="pdf-section">
+            <h3>Attached Document</h3>
+            <div class="pdf-info">
+              <span class="pdf-filename">📄 {{ selectedMaintenance.attachment_filename }}</span>
+              <button @click="viewPdf(selectedMaintenance.attachment_path)" class="view-pdf-btn">
+                Open PDF
+              </button>
+            </div>
+            <!-- PDF Preview (web only) -->
+            <div v-if="!isNativePlatform && pdfPreviewUrl" class="pdf-preview">
+              <iframe :src="pdfPreviewUrl" width="100%" height="400px"></iframe>
+            </div>
+          </div>
+          <div v-else class="no-pdf">
+            <p>No document attached</p>
+            <button @click="addDocumentToSelectedRecord" class="add-pdf-btn">
+              Add Document
+            </button>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="detail-actions">
+            <button @click="editSelectedMaintenance" class="action-btn edit-btn">
+              Edit Record
+            </button>
+            <button @click="deleteSelectedMaintenance" class="action-btn delete-btn">
+              Delete Record
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Maintenance Modal -->
+    <div
+      v-if="showEditMaintenanceModal"
+      class="modal-overlay"
+      @click="closeEditMaintenanceModal"
+    >
+      <div class="modal-content maintenance-modal" @click.stop>
+        <div class="modal-header">
+          <h2>Edit Maintenance Record</h2>
+          <button @click="closeEditMaintenanceModal" class="close-btn">
+            &times;
+          </button>
+        </div>
+        <form @submit.prevent="saveMaintenanceEdit" class="maintenance-form">
+          <div class="form-group">
+            <label for="editMaintenanceDate">Date</label>
+            <input
+              type="date"
+              id="editMaintenanceDate"
+              v-model="editMaintenanceForm.date"
+              required
+              class="form-control"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="editMaintenanceCategory">Category</label>
+            <select
+              id="editMaintenanceCategory"
+              v-model="editMaintenanceForm.category"
+              required
+              class="form-control"
+            >
+              <option value="">Select category</option>
+              <option
+                v-for="category in maintenanceCategories"
+                :key="category"
+                :value="category"
+              >
+                {{ category }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="editMaintenanceDescription">Description</label>
+            <textarea
+              id="editMaintenanceDescription"
+              v-model="editMaintenanceForm.description"
+              placeholder="Describe the maintenance work performed..."
+              rows="3"
+              class="form-control"
+            ></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="button"
+              @click="closeEditMaintenanceModal"
+              class="cancel-btn"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="submit-btn">
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { gearOperations } from "../database/database.js";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
+import { gearOperations, maintenanceOperations, flightOperations } from "../database/database.js";
 import { formatDate } from "../utils/dateUtils.js";
 
 export default {
@@ -489,14 +541,17 @@ export default {
     const maintenanceCategories = ref([]);
     const flights = ref([]);
 
-    // Inline editing state
-    const isEditMode = ref(false);
-    const editingRecord = ref(null);
-    const editFormData = ref({
+    // Maintenance detail state
+    const showMaintenanceDetail = ref(false);
+    const selectedMaintenance = ref(null);
+    const pdfPreviewUrl = ref(null);
+    const showEditMaintenanceModal = ref(false);
+    const editMaintenanceForm = ref({
       date: "",
       category: "",
       description: "",
     });
+    const isNativePlatform = true; // Mobile-only app
 
     // Load maintenance categories from settings
     const loadMaintenanceCategories = () => {
@@ -521,6 +576,8 @@ export default {
       model: "",
       manufacturing_date: "",
       purchase_date: "",
+      serial_number: "",
+      notes: "",
     });
 
     // Load gear details
@@ -537,6 +594,8 @@ export default {
           model: gear.value.model,
           manufacturing_date: gear.value.manufacturing_date || "",
           purchase_date: gear.value.purchase_date || "",
+          serial_number: gear.value.serial_number || "",
+          notes: gear.value.notes || "",
         };
       } catch (err) {
         error.value = "Failed to load gear details";
@@ -603,6 +662,8 @@ export default {
         model: gear.value.model,
         manufacturing_date: gear.value.manufacturing_date || "",
         purchase_date: gear.value.purchase_date || "",
+        serial_number: gear.value.serial_number || "",
+        notes: gear.value.notes || "",
       };
     };
 
@@ -616,11 +677,8 @@ export default {
 
       loadingMaintenance.value = true;
       try {
-        const response = await fetch(
-          `http://localhost:3001/api/gear/${gear.value.id}/maintenance`
-        );
-        const data = await response.json();
-        maintenanceRecords.value = data.data || [];
+        // Use native database operations
+        maintenanceRecords.value = await maintenanceOperations.getByGearId(gear.value.id);
       } catch (error) {
         console.error("Error loading maintenance records:", error);
         errorMessage.value = "Failed to load maintenance records";
@@ -634,15 +692,26 @@ export default {
       if (!gear.value || gear.value.type !== "gliders") return;
 
       try {
-        const response = await fetch(
-          `http://localhost:3001/api/gear/${gear.value.id}/flights`
-        );
-        const data = await response.json();
-        flights.value = data.data || [];
+        // Get all flights and filter by glider
+        const allFlights = await flightOperations.getAllFlights();
+        flights.value = allFlights.filter(f => f.glider === gear.value.id);
       } catch (error) {
         console.error("Error loading flights:", error);
         flights.value = [];
       }
+    };
+
+    const readFileAsBase64 = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          // Remove the data URL prefix to get just the base64 string
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
     };
 
     const addMaintenanceRecord = async () => {
@@ -651,49 +720,32 @@ export default {
         let attachmentPath = null;
         let attachmentFilename = null;
 
-        // Upload PDF if selected
+        // Handle PDF upload - store locally
         if (selectedPdf.value) {
-          const formData = new FormData();
-          formData.append("pdfFile", selectedPdf.value);
-
-          const uploadResponse = await fetch(
-            "http://localhost:3001/api/maintenance/upload-pdf",
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
-
-          if (!uploadResponse.ok) {
-            throw new Error("Failed to upload PDF");
-          }
-
-          const uploadResult = await uploadResponse.json();
-          attachmentPath = uploadResult.path;
-          attachmentFilename = uploadResult.originalName;
+          const base64Data = await readFileAsBase64(selectedPdf.value);
+          const fileName = `${Date.now()}_${selectedPdf.value.name}`;
+          
+          await Filesystem.writeFile({
+            path: `maintenance_pdfs/${fileName}`,
+            data: base64Data,
+            directory: Directory.Documents,
+            recursive: true,
+          });
+          
+          attachmentPath = fileName;
+          attachmentFilename = selectedPdf.value.name;
         }
 
-        // Add maintenance record
-        const response = await fetch(
-          `http://localhost:3001/api/gear/${gear.value.id}/maintenance`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              date: maintenanceForm.value.date,
-              category: maintenanceForm.value.category,
-              description: maintenanceForm.value.description,
-              attachment_path: attachmentPath,
-              attachment_filename: attachmentFilename,
-            }),
-          }
-        );
+        const maintenanceData = {
+          date: maintenanceForm.value.date,
+          category: maintenanceForm.value.category,
+          description: maintenanceForm.value.description,
+          attachment_path: attachmentPath,
+          attachment_filename: attachmentFilename,
+        };
 
-        if (!response.ok) {
-          throw new Error("Failed to add maintenance record");
-        }
+        // Use native database operations
+        await maintenanceOperations.add(gear.value.id, maintenanceData);
 
         await loadMaintenanceRecords();
         closeAddMaintenanceModal();
@@ -701,7 +753,7 @@ export default {
         setTimeout(() => (successMessage.value = ""), 3000);
       } catch (error) {
         console.error("Error adding maintenance record:", error);
-        errorMessage.value = "Failed to add maintenance record";
+        errorMessage.value = "Failed to add maintenance record: " + error.message;
         setTimeout(() => (errorMessage.value = ""), 3000);
       } finally {
         uploading.value = false;
@@ -716,16 +768,7 @@ export default {
       }
 
       try {
-        const response = await fetch(
-          `http://localhost:3001/api/maintenance/${recordId}`,
-          {
-            method: "DELETE",
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to delete maintenance record");
-        }
+        await maintenanceOperations.delete(recordId);
 
         await loadMaintenanceRecords();
         successMessage.value = "Maintenance record deleted successfully";
@@ -737,9 +780,51 @@ export default {
       }
     };
 
-    const viewPdf = (filename) => {
-      const pdfUrl = `http://localhost:3001/api/maintenance/pdf/${filename}`;
-      window.open(pdfUrl, "_blank");
+    const viewPdf = async (filename) => {
+      try {
+        // Get the file URI
+        const uriResult = await Filesystem.getUri({
+          path: `maintenance_pdfs/${filename}`,
+          directory: Directory.Documents,
+        });
+        
+        // On Android, we need to use a content:// URI or share intent
+        await Share.share({
+          title: 'View PDF',
+          text: 'Opening maintenance document',
+          url: uriResult.uri,
+          dialogTitle: 'Open PDF with...',
+        });
+      } catch (shareError) {
+        console.error("Share error:", shareError);
+        
+        // Fallback: try reading and displaying inline
+        try {
+          const fileResult = await Filesystem.readFile({
+            path: `maintenance_pdfs/${filename}`,
+            directory: Directory.Documents,
+          });
+          
+          // Create a data URL and try to open it
+          const dataUrl = `data:application/pdf;base64,${fileResult.data}`;
+          
+          // Create a temporary link and click it
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = filename;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          successMessage.value = "PDF downloaded. Check your downloads.";
+          setTimeout(() => (successMessage.value = ""), 3000);
+        } catch (fallbackError) {
+          console.error("Fallback error:", fallbackError);
+          errorMessage.value = "Could not open PDF. File may not exist.";
+          setTimeout(() => (errorMessage.value = ""), 3000);
+        }
+      }
     };
 
     const closeAddMaintenanceModal = () => {
@@ -754,9 +839,15 @@ export default {
 
     const handlePdfSelect = (event) => {
       const file = event.target.files[0];
-      if (file && file.type === "application/pdf") {
+      if (!file) return;
+      
+      // Check by MIME type or file extension (mobile sometimes doesn't set MIME type correctly)
+      const isPdf = file.type === "application/pdf" || 
+                    file.name.toLowerCase().endsWith(".pdf");
+      
+      if (isPdf) {
         selectedPdf.value = file;
-      } else if (file) {
+      } else {
         alert("Please select a valid PDF file");
         event.target.value = "";
       }
@@ -778,29 +869,31 @@ export default {
 
       fileInput.onchange = async (event) => {
         const file = event.target.files[0];
-        if (!file || file.type !== "application/pdf") {
+        if (!file) return;
+        
+        // Check by MIME type or file extension
+        const isPdf = file.type === "application/pdf" || 
+                      file.name.toLowerCase().endsWith(".pdf");
+        
+        if (!isPdf) {
           alert("Please select a valid PDF file");
           return;
         }
 
         try {
-          // Upload the PDF
-          const formData = new FormData();
-          formData.append("pdfFile", file);
-
-          const uploadResponse = await fetch(
-            "http://localhost:3001/api/maintenance/upload-pdf",
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
-
-          if (!uploadResponse.ok) {
-            throw new Error("Failed to upload PDF");
-          }
-
-          const uploadResult = await uploadResponse.json();
+          // Store PDF locally
+          const base64Data = await readFileAsBase64(file);
+          const fileName = `${Date.now()}_${file.name}`;
+          
+          await Filesystem.writeFile({
+            path: `maintenance_pdfs/${fileName}`,
+            data: base64Data,
+            directory: Directory.Documents,
+            recursive: true,
+          });
+          
+          const attachmentPath = fileName;
+          const attachmentFilename = file.name;
 
           // Get the current maintenance record to preserve existing data
           const currentRecord = maintenanceRecords.value.find(
@@ -810,27 +903,16 @@ export default {
             throw new Error("Maintenance record not found");
           }
 
-          // Update the maintenance record with the attachment
-          const updateResponse = await fetch(
-            `http://localhost:3001/api/maintenance/${recordId}`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                date: currentRecord.date,
-                category: currentRecord.category,
-                description: currentRecord.description,
-                attachment_path: uploadResult.path,
-                attachment_filename: uploadResult.originalName,
-              }),
-            }
-          );
+          const updateData = {
+            date: currentRecord.date,
+            category: currentRecord.category,
+            description: currentRecord.description,
+            attachment_path: attachmentPath,
+            attachment_filename: attachmentFilename,
+          };
 
-          if (!updateResponse.ok) {
-            throw new Error("Failed to update maintenance record");
-          }
+          // Update the maintenance record with the attachment
+          await maintenanceOperations.update(recordId, updateData);
 
           // Reload maintenance records to show the new attachment
           await loadMaintenanceRecords();
@@ -838,7 +920,7 @@ export default {
           setTimeout(() => (successMessage.value = ""), 3000);
         } catch (error) {
           console.error("Error adding document:", error);
-          errorMessage.value = "Failed to add document";
+          errorMessage.value = "Failed to add document: " + error.message;
           setTimeout(() => (errorMessage.value = ""), 3000);
         }
       };
@@ -859,45 +941,26 @@ export default {
           throw new Error("Maintenance record not found");
         }
 
-        // If there's an attachment, delete the file first
+        // If there's an attachment, delete the file locally
         if (currentRecord.attachment_path) {
-          const deleteFileResponse = await fetch(
-            `http://localhost:3001/api/maintenance/delete-file/${encodeURIComponent(
-              currentRecord.attachment_path
-            )}`,
-            {
-              method: "DELETE",
-            }
-          );
-
-          if (!deleteFileResponse.ok) {
-            console.warn(
-              "Failed to delete file from server, continuing with record update"
-            );
+          try {
+            await Filesystem.deleteFile({
+              path: `maintenance_pdfs/${currentRecord.attachment_path}`,
+              directory: Directory.Documents,
+            });
+          } catch (e) {
+            console.warn("Failed to delete file locally:", e);
           }
         }
 
         // Update the maintenance record to remove the attachment
-        const updateResponse = await fetch(
-          `http://localhost:3001/api/maintenance/${recordId}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              date: currentRecord.date,
-              category: currentRecord.category,
-              description: currentRecord.description,
-              attachment_path: null,
-              attachment_filename: null,
-            }),
-          }
-        );
-
-        if (!updateResponse.ok) {
-          throw new Error("Failed to remove document");
-        }
+        await maintenanceOperations.update(recordId, {
+          date: currentRecord.date,
+          category: currentRecord.category,
+          description: currentRecord.description,
+          attachment_path: null,
+          attachment_filename: null,
+        });
 
         // Reload maintenance records to show the change
         await loadMaintenanceRecords();
@@ -1056,62 +1119,49 @@ export default {
       return flightTimeWarning || dateWarning;
     };
 
-    // Inline editing methods
-    const toggleEditMode = () => {
-      isEditMode.value = !isEditMode.value;
-      if (!isEditMode.value) {
-        cancelEdit();
-      }
+    // Maintenance detail methods
+    const openMaintenanceDetail = (record) => {
+      selectedMaintenance.value = record;
+      showMaintenanceDetail.value = true;
+      pdfPreviewUrl.value = null; // No web preview on mobile-only app
     };
 
-    const startEditRecord = (record) => {
-      editingRecord.value = record.id;
-      editFormData.value = {
-        date: record.date,
-        category: record.category,
-        description: record.description || "",
+    const closeMaintenanceDetail = () => {
+      showMaintenanceDetail.value = false;
+      selectedMaintenance.value = null;
+      pdfPreviewUrl.value = null;
+    };
+
+    const editSelectedMaintenance = () => {
+      editMaintenanceForm.value = {
+        date: selectedMaintenance.value.date,
+        category: selectedMaintenance.value.category,
+        description: selectedMaintenance.value.description || "",
       };
+      showEditMaintenanceModal.value = true;
     };
 
-    const cancelEdit = () => {
-      editingRecord.value = null;
-      editFormData.value = {
-        date: "",
-        category: "",
-        description: "",
-      };
+    const closeEditMaintenanceModal = () => {
+      showEditMaintenanceModal.value = false;
     };
 
-    const saveRecord = async (recordId) => {
+    const saveMaintenanceEdit = async () => {
       try {
-        const response = await fetch(
-          `http://localhost:3001/api/maintenance/${recordId}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              date: editFormData.value.date,
-              category: editFormData.value.category,
-              description: editFormData.value.description,
-              // Preserve attachment fields from the original record
-              attachment_path:
-                maintenanceRecords.value.find((r) => r.id === recordId)
-                  ?.attachment_path || null,
-              attachment_filename:
-                maintenanceRecords.value.find((r) => r.id === recordId)
-                  ?.attachment_filename || null,
-            }),
-          }
-        );
+        const recordId = selectedMaintenance.value.id;
+        
+        const updateData = {
+          date: editMaintenanceForm.value.date,
+          category: editMaintenanceForm.value.category,
+          description: editMaintenanceForm.value.description,
+          attachment_path: selectedMaintenance.value.attachment_path || null,
+          attachment_filename: selectedMaintenance.value.attachment_filename || null,
+        };
 
-        if (!response.ok) {
-          throw new Error("Failed to update maintenance record");
-        }
+        await maintenanceOperations.update(recordId, updateData);
 
         await loadMaintenanceRecords();
-        cancelEdit();
+        closeEditMaintenanceModal();
+        closeMaintenanceDetail();
         successMessage.value = "Record updated successfully";
         setTimeout(() => (successMessage.value = ""), 3000);
       } catch (error) {
@@ -1119,6 +1169,31 @@ export default {
         errorMessage.value = "Failed to update record";
         setTimeout(() => (errorMessage.value = ""), 3000);
       }
+    };
+
+    const deleteSelectedMaintenance = async () => {
+      if (!confirm("Are you sure you want to delete this maintenance record?")) {
+        return;
+      }
+      
+      try {
+        const recordId = selectedMaintenance.value.id;
+        await maintenanceOperations.delete(recordId);
+
+        await loadMaintenanceRecords();
+        closeMaintenanceDetail();
+        successMessage.value = "Maintenance record deleted successfully";
+        setTimeout(() => (successMessage.value = ""), 3000);
+      } catch (error) {
+        console.error("Error deleting maintenance record:", error);
+        errorMessage.value = "Failed to delete maintenance record";
+        setTimeout(() => (errorMessage.value = ""), 3000);
+      }
+    };
+
+    const addDocumentToSelectedRecord = () => {
+      addDocumentToRecord(selectedMaintenance.value.id);
+      closeMaintenanceDetail();
     };
 
     // Utility functions
@@ -1174,14 +1249,20 @@ export default {
       loadMaintenanceRecords,
       addDocumentToRecord,
       removeDocumentFromRecord,
-      // Inline editing
-      isEditMode,
-      editingRecord,
-      editFormData,
-      toggleEditMode,
-      startEditRecord,
-      cancelEdit,
-      saveRecord,
+      // Maintenance detail
+      showMaintenanceDetail,
+      selectedMaintenance,
+      pdfPreviewUrl,
+      showEditMaintenanceModal,
+      editMaintenanceForm,
+      isNativePlatform,
+      openMaintenanceDetail,
+      closeMaintenanceDetail,
+      editSelectedMaintenance,
+      closeEditMaintenanceModal,
+      saveMaintenanceEdit,
+      deleteSelectedMaintenance,
+      addDocumentToSelectedRecord,
       getRescueWarning,
       getGliderWarning,
       formatWarningDate,
@@ -1195,6 +1276,7 @@ export default {
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
+  overflow-x: hidden;
 }
 
 /* Loading styles inherited from global */
@@ -1211,12 +1293,7 @@ export default {
 
 /* Header Section */
 .header-section {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #eee;
+  margin-bottom: 20px;
 }
 
 .back-btn {
@@ -1236,16 +1313,6 @@ export default {
   border-color: #adb5bd;
 }
 
-.header-section h1 {
-  flex: 1;
-  margin: 0;
-  color: #2c3e50;
-  text-align: center;
-}
-
-.header-spacer {
-  width: 40px; /* Same width as back button to balance the layout */
-}
 
 /* Warning Banner Styles */
 .warning-banner-detail {
@@ -1517,17 +1584,7 @@ export default {
     padding: 16px;
   }
 
-  .header-section {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .header-section h1 {
-    font-size: 24px;
-  }
-
-  .actions-section {
+  .actions-section-bottom {
     flex-direction: column;
   }
 
@@ -1553,19 +1610,16 @@ export default {
     width: 100%;
   }
 
-  .maintenance-table-container {
-    overflow-x: auto;
   }
 
-  .maintenance-table {
-    width: 100%;
-  }
-
-  .maintenance-table th,
-  .maintenance-table td {
-    padding: 8px;
-    font-size: 14px;
-  }
+/* Bottom Action Buttons */
+.actions-section-bottom {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 2px solid #eee;
+  flex-wrap: wrap;
 }
 
 /* Maintenance Section */
@@ -1579,8 +1633,8 @@ export default {
 
 .maintenance-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
   margin-bottom: 24px;
   border-bottom: 2px solid #eee;
   padding-bottom: 16px;
@@ -1589,7 +1643,19 @@ export default {
 .maintenance-header h2 {
   margin: 0;
   color: #333;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
+}
+
+@media (min-width: 600px) {
+  .maintenance-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .maintenance-header h2 {
+    font-size: 1.5rem;
+  }
 }
 
 .add-btn {
@@ -1623,112 +1689,220 @@ export default {
   border: 2px dashed #ddd;
 }
 
-.maintenance-table-container {
-  margin-top: 20px;
+/* Maintenance List Styles */
+.maintenance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.maintenance-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.maintenance-table th {
+.maintenance-item {
   background: #f8f9fa;
-  padding: 12px;
-  text-align: left;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.maintenance-item:hover {
+  background: #e9ecef;
+  border-color: #549f74;
+}
+
+.maintenance-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.maintenance-date {
   font-weight: 600;
   color: #333;
-  border-bottom: 2px solid #eee;
-}
-
-.maintenance-table td {
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-  vertical-align: middle;
-}
-
-.maintenance-table tr:hover {
-  background: #f8f9fa;
 }
 
 .maintenance-category {
   background: #e8f5f0;
   color: #2d7a52;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 500;
 }
 
-.add-document-btn {
-  background: none;
-  border: none;
-  color: #007bff;
-  cursor: pointer;
-  text-decoration: underline;
-  padding: 0;
-  font-size: inherit;
+.maintenance-item-desc {
+  color: #666;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.add-document-btn:hover {
-  color: #0056b3;
+.maintenance-item-attachment {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: #549f74;
 }
 
-/* Inline Editing Styles */
-.table-actions {
-  display: flex;
-  justify-content: center;
-  margin-top: 15px;
-  padding-top: 15px;
+/* Maintenance Detail Modal */
+.maintenance-detail-modal {
+  max-width: 500px;
+  width: 95%;
+}
+
+.maintenance-detail-content {
+  padding: 20px;
+}
+
+.detail-row {
+  margin-bottom: 16px;
+}
+
+.detail-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.detail-value {
+  font-size: 1rem;
+  color: #333;
+}
+
+.detail-value.category-badge {
+  display: inline-block;
+  background: #e8f5f0;
+  color: #2d7a52;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.detail-value.description {
+  display: block;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.pdf-section {
+  margin-top: 20px;
+  padding-top: 20px;
   border-top: 1px solid #eee;
 }
 
-.edit-table-btn {
-  background: #007bff;
+.pdf-section h3 {
+  font-size: 1rem;
+  color: #333;
+  margin: 0 0 12px 0;
+}
+
+.pdf-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pdf-filename {
+  color: #666;
+  word-break: break-all;
+}
+
+.view-pdf-btn {
+  background: #549f74;
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 8px 16px;
   border-radius: 6px;
+  font-size: 0.9rem;
   cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: background-color 0.2s;
+  white-space: nowrap;
 }
 
-.edit-table-btn:hover {
-  background: #0056b3;
+.view-pdf-btn:hover {
+  background: #448060;
 }
 
-.edit-table-btn.active {
-  background: #28a745;
-}
-
-.edit-table-btn.active:hover {
-  background: #218838;
-}
-
-.inline-input,
-.inline-select,
-.inline-textarea {
-  width: 100%;
-  padding: 6px 8px;
+.pdf-preview {
+  margin-top: 16px;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pdf-preview iframe {
+  border: none;
+  display: block;
+}
+
+.no-pdf {
+  margin-top: 20px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.no-pdf p {
+  color: #666;
+  margin: 0 0 12px 0;
+}
+
+.add-pdf-btn {
+  background: #549f74;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
   font-size: 0.9rem;
+  cursor: pointer;
 }
 
-.inline-select {
-  min-width: 150px;
+.add-pdf-btn:hover {
+  background: #448060;
 }
 
-.inline-textarea {
-  resize: vertical;
-  min-height: 60px;
+.detail-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
 }
+
+.detail-actions .action-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+}
+
+.detail-actions .edit-btn {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #bbdefb;
+}
+
+.detail-actions .edit-btn:hover {
+  background: #bbdefb;
+}
+
+.detail-actions .delete-btn {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+}
+
+.detail-actions .delete-btn:hover {
+  background: #ffcdd2;
+}
+
 
 .edit-actions {
   text-align: center;
@@ -1866,18 +2040,89 @@ export default {
 /* Maintenance Modal */
 .maintenance-modal {
   max-width: 600px;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .maintenance-form {
-  padding: 24px;
+  padding: 20px;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .maintenance-modal {
+    width: 95%;
+    max-width: none;
+    margin: 10px;
+  }
+  
+  .maintenance-form {
+    padding: 16px;
+  }
+}
+
+.maintenance-form select.form-control {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20256%20256%22%3E%3Cpath%20fill%3D%22%23549f74%22%20d%3D%22M208.5%2096.5l-80%2080a12%2012%200%2001-17%200l-80-80a12%2012%200%2001%2017-17L128%20151l71.5-71.5a12%2012%200%2001%2017%2017z%22%2F%3E%3C%2Fsvg%3E');
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+.maintenance-form .form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.maintenance-form .submit-btn {
+  background: #549f74;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.maintenance-form .submit-btn:hover:not(:disabled) {
+  background: #448060;
+}
+
+.maintenance-form .submit-btn:disabled {
+  background: #a8d4bb;
+  cursor: not-allowed;
+}
+
+.maintenance-form .cancel-btn {
+  background: #f8f9fa;
+  color: #495057;
+  border: 1px solid #dee2e6;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.maintenance-form .cancel-btn:hover {
+  background: #e9ecef;
 }
 
 .file-upload-area {
   border: 2px dashed #ddd;
   border-radius: 8px;
-  padding: 20px;
+  padding: 15px;
   text-align: center;
   background: #f9f9f9;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .file-input {
@@ -1893,6 +2138,14 @@ export default {
   background: #e8f5f0;
   border-radius: 6px;
   margin: 10px 0;
+  word-break: break-all;
+  overflow: hidden;
+}
+
+.selected-file span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
 }
 
 .clear-file-btn {

@@ -1,5 +1,6 @@
 import { createApp } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
+import { Capacitor } from "@capacitor/core";
 import App from "./App.vue";
 import FlightsList from "./components/FlightsList.vue";
 import FlightDetail from "./components/FlightDetail.vue";
@@ -9,6 +10,9 @@ import GearOverview from "./components/GearOverview.vue";
 import GearDetail from "./components/GearDetail.vue";
 import Settings from "./components/Settings.vue";
 import "./style.css";
+
+// Import database initialization
+import { initializeDatabase } from "./database/database.js";
 
 const routes = [
   { path: "/", component: FlightsList },
@@ -26,4 +30,26 @@ const router = createRouter({
   routes,
 });
 
-createApp(App).use(router).mount("#app");
+// Initialize the app
+async function initApp() {
+  const platform = Capacitor.getPlatform();
+  const isNative = platform === 'android' || platform === 'ios';
+  
+  // Initialize database for native platforms
+  if (isNative) {
+    try {
+      await initializeDatabase();
+    } catch (error) {
+      console.error("❌ Failed to initialize native database:", error);
+      // Continue anyway - the app may still work with degraded functionality
+    }
+  }
+  
+  // Create and mount Vue app
+  const app = createApp(App);
+  app.use(router);
+  app.mount("#app");
+}
+
+// Start the app
+initApp();
