@@ -505,6 +505,7 @@
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import { gearOperations, maintenanceOperations, flightOperations } from "../database/database.js";
 import { formatDate } from "../utils/dateUtils.js";
 
@@ -790,8 +791,6 @@ export default {
         console.log("PDF URI:", uriResult.uri);
         
         // On Android, we need to use a content:// URI or share intent
-        const { Share } = await import('@capacitor/share');
-        
         await Share.share({
           title: 'View PDF',
           text: 'Opening maintenance document',

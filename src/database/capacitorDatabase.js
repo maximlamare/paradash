@@ -255,10 +255,16 @@ export const nativeFlightOperations = {
     }
   },
 
-  // Export database - not supported on native, return empty for now
+  // Export database as JSON
   exportDatabase: async () => {
-    console.warn('Database export not yet implemented for native platform');
-    return { success: false, message: 'Export not available on mobile' };
+    try {
+      await initializeDatabase();
+      const exportData = await db.exportToJson('full');
+      return { success: true, data: exportData.export };
+    } catch (error) {
+      console.error('Error exporting database:', error);
+      return { success: false, message: error.message };
+    }
   },
 
   // Export CSV - not supported on native
@@ -499,6 +505,59 @@ export const nativeMaintenanceOperations = {
   },
 };
 
+// Wipe all data from the database
+export async function wipeAllData() {
+  try {
+    await initializeDatabase();
+    
+    // Delete all records from all tables
+    await db.execute('DELETE FROM flights');
+    await db.execute('DELETE FROM gear');
+    await db.execute('DELETE FROM gear_maintenance');
+    
+    // Reset auto-increment counters
+    await db.execute("DELETE FROM sqlite_sequence WHERE name='flights'");
+    await db.execute("DELETE FROM sqlite_sequence WHERE name='gear'");
+    await db.execute("DELETE FROM sqlite_sequence WHERE name='gear_maintenance'");
+    
+    console.log('All data wiped from database');
+    return { success: true };
+  } catch (error) {
+    console.error('Error wiping database:', error);
+    throw error;
+  }
+}
+
+// Import database from JSON export
+export async function importFromJson(jsonString) {
+  try {
+    await initializeDatabase();
+    
+    const importData = JSON.parse(jsonString);
+    console.log('Importing database from JSON...', {
+      database: importData.database,
+      version: importData.version,
+      tablesCount: importData.tables?.length
+    });
+    
+    // Close the current connection before importing
+    await db.close();
+    
+    // Use the SQLite import function on the connection object
+    const result = await sqlite.importFromJson(jsonString);
+    console.log('Database import result:', result);
+    
+    // Reopen the database
+    db = await sqlite.retrieveConnection(DB_NAME, false);
+    await db.open();
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error importing database:', error);
+    throw error;
+  }
+}
+
 // Check if running on native platform
 export function isNativePlatform() {
   const platform = Capacitor.getPlatform();
@@ -509,6 +568,8 @@ export default {
   initializeDatabase,
   closeDatabase,
   isNativePlatform,
+  wipeAllData,
+  importFromJson,
   flightOperations: nativeFlightOperations,
   gearOperations: nativeGearOperations,
   maintenanceOperations: nativeMaintenanceOperations,

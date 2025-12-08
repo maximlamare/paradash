@@ -17,6 +17,7 @@
     "@capacitor/filesystem": "^7.1.5",
     "@capacitor/share": "^7.0.2",
     "igc-parser": "^2.0.0",
+    "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
     "leaflet.fullscreen": "^5.1.1",
     "vue": "^3.4.0",

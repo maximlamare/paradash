@@ -4,6 +4,7 @@
 import {
   initializeDatabase as initNativeDb,
   closeDatabase as closeNativeDb,
+  wipeAllData as wipeNativeDb,
   nativeFlightOperations,
   nativeGearOperations,
   nativeMaintenanceOperations,
@@ -27,6 +28,11 @@ export async function initializeDatabase() {
 export async function closeDatabase() {
   await closeNativeDb();
   isInitialized = false;
+}
+
+// Wipe all data from database
+export async function wipeAllData() {
+  return await wipeNativeDb();
 }
 
 // Flight operations - direct pass-through to native implementation
