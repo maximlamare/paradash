@@ -1,7 +1,7 @@
-# Database Directory
+# Data Directory
 
-This directory contains the SQLite database file for the ParaDash application.
+This directory was used for web-based database files in earlier versions.
 
-- `flights.db` - SQLite database file (created automatically when the app runs)
+For the mobile app, data is now stored using Capacitor's native SQLite plugin in the device's secure storage area.
 
-The database is automatically initialized with sample data when you first run the application.
+This directory is kept for reference but is no longer actively used by the application.

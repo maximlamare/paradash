@@ -35,29 +35,20 @@ async function initApp() {
   const platform = Capacitor.getPlatform();
   const isNative = platform === 'android' || platform === 'ios';
   
-  console.log(`🚀 ParaDash starting on platform: ${platform}`);
-  console.log(`📱 Is native platform: ${isNative}`);
-  
   // Initialize database for native platforms
   if (isNative) {
     try {
-      console.log("📊 Initializing native SQLite database...");
       await initializeDatabase();
-      console.log("✅ Native database initialized successfully");
     } catch (error) {
       console.error("❌ Failed to initialize native database:", error);
       // Continue anyway - the app may still work with degraded functionality
     }
-  } else {
-    console.log("🌐 Running on web - using API backend");
   }
   
   // Create and mount Vue app
   const app = createApp(App);
   app.use(router);
   app.mount("#app");
-  
-  console.log("✅ Vue app mounted");
 }
 
 // Start the app

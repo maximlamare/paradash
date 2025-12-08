@@ -81,7 +81,6 @@ export async function initializeDatabase() {
 
   try {
     const platform = Capacitor.getPlatform();
-    console.log(`Initializing Capacitor SQLite on platform: ${platform}`);
 
     // Create SQLite connection
     sqlite = new SQLiteConnection(CapacitorSQLite);
@@ -104,7 +103,6 @@ export async function initializeDatabase() {
 
     // Open the database
     await db.open();
-    console.log('Database connection opened');
 
     // Enable foreign keys
     await db.execute('PRAGMA foreign_keys = ON');
@@ -118,19 +116,15 @@ export async function initializeDatabase() {
     try {
       // Add serial_number and notes columns if they don't exist
       await db.execute('ALTER TABLE gear ADD COLUMN serial_number TEXT');
-      console.log('Added serial_number column to gear table');
     } catch (e) {
       // Column already exists, ignore
     }
     
     try {
       await db.execute('ALTER TABLE gear ADD COLUMN notes TEXT');
-      console.log('Added notes column to gear table');
     } catch (e) {
       // Column already exists, ignore
     }
-
-    console.log('Database tables created/verified');
     isInitialized = true;
 
     return db;
@@ -147,7 +141,6 @@ export async function closeDatabase() {
       await sqlite.closeConnection(DB_NAME, false);
       db = null;
       isInitialized = false;
-      console.log('Database connection closed');
     } catch (error) {
       console.error('Error closing database:', error);
     }
@@ -520,7 +513,6 @@ export async function wipeAllData() {
     await db.execute("DELETE FROM sqlite_sequence WHERE name='gear'");
     await db.execute("DELETE FROM sqlite_sequence WHERE name='gear_maintenance'");
     
-    console.log('All data wiped from database');
     return { success: true };
   } catch (error) {
     console.error('Error wiping database:', error);
@@ -534,18 +526,12 @@ export async function importFromJson(jsonString) {
     await initializeDatabase();
     
     const importData = JSON.parse(jsonString);
-    console.log('Importing database from JSON...', {
-      database: importData.database,
-      version: importData.version,
-      tablesCount: importData.tables?.length
-    });
     
     // Close the current connection before importing
     await db.close();
     
     // Use the SQLite import function on the connection object
     const result = await sqlite.importFromJson(jsonString);
-    console.log('Database import result:', result);
     
     // Reopen the database
     db = await sqlite.retrieveConnection(DB_NAME, false);

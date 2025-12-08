@@ -656,8 +656,6 @@ export default {
       this.trackError = "";
 
       try {
-        console.log("Loading track data for:", this.flight.igcFilePath);
-        
         // Read IGC file from device and parse locally
         await this.loadTrackDataNative();
 
@@ -732,8 +730,6 @@ export default {
             gliderSerial: flight.gliderSerial || "",
           },
         };
-
-        console.log("Track data loaded (native):", this.trackData);
       } catch (error) {
         console.error("Error reading IGC file on native:", error);
         // File might not exist locally, show appropriate message
@@ -742,7 +738,6 @@ export default {
     },
 
     initializeMap() {
-      console.log("Initializing map with track data:", this.trackData);
       if (!this.trackData || !this.trackData.trackPoints) {
         console.error("No track data available for map initialization");
         return;
@@ -754,8 +749,6 @@ export default {
         console.error("Map container not found");
         return;
       }
-
-      console.log("Map container found, creating map...");
 
       // Initialize Leaflet map
       this.map = L.map("flight-map").setView(
@@ -777,8 +770,6 @@ export default {
         point.latitude,
         point.longitude,
       ]);
-
-      console.log("Track line points:", trackLine.length);
 
       // Add flight track to map
       const flightPath = L.polyline(trackLine, {
@@ -826,8 +817,6 @@ export default {
 
       // Fit map to track bounds
       this.map.fitBounds(flightPath.getBounds(), { padding: [20, 20] });
-
-      console.log("Map initialized successfully");
     },
 
     goBack() {

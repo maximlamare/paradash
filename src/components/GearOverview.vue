@@ -558,7 +558,7 @@ export default {
 
     const addGear = async () => {
       try {
-        // Create new gear object for API
+        // Create new gear object
         const gearItem = {
           manufacturer: newGear.value.manufacturer,
           model: newGear.value.model,

@@ -788,8 +788,6 @@ export default {
           directory: Directory.Documents,
         });
         
-        console.log("PDF URI:", uriResult.uri);
-        
         // On Android, we need to use a content:// URI or share intent
         await Share.share({
           title: 'View PDF',
@@ -849,7 +847,6 @@ export default {
       
       if (isPdf) {
         selectedPdf.value = file;
-        console.log("PDF selected:", file.name, file.type);
       } else {
         alert("Please select a valid PDF file");
         event.target.value = "";

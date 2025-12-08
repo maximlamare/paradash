@@ -19,7 +19,6 @@ export async function initializeDatabase() {
     return;
   }
 
-  console.log('Initializing native SQLite database...');
   await initNativeDb();
   isInitialized = true;
 }
@@ -76,5 +75,3 @@ export const addGear = gearOperations.add;
 export const db = {
   close: closeNativeDb,
 };
-
-console.log('Database module loaded - native SQLite mode');

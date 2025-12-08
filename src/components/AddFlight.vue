@@ -39,25 +39,6 @@
                 Remove
               </button>
             </div>
-
-            <div v-if="uploadedIGC.fileExists" class="file-conflict-warning">
-              <div class="warning-icon">⚠️</div>
-              <div class="warning-text">
-                <p><strong>Similar IGC file already exists!</strong></p>
-                <div class="conflict-actions">
-                  <button
-                    type="button"
-                    @click="overwriteExisting"
-                    class="btn-overwrite"
-                  >
-                    Overwrite Existing
-                  </button>
-                  <button type="button" @click="keepBoth" class="btn-keep-both">
-                    Keep Both Files
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div v-if="igcUploadError" class="error-message">
@@ -409,8 +390,6 @@ export default {
       gliderType: "",
       gliderSerial: "",
       totalFixes: 0,
-      fileExists: false,
-      existingFiles: [],
     });
 
     const igcData = computed(() => uploadedIGC.value);
@@ -517,7 +496,6 @@ export default {
 
     const uploadIGCFile = async (file) => {
       try {
-        console.log("Starting IGC file upload:", file.name, "Size:", file.size);
         igcUploadError.value = "";
 
         // Parse locally and store with Filesystem
@@ -537,8 +515,6 @@ export default {
           recursive: true,
         });
 
-        console.log("IGC file stored locally:", fileName);
-
         // Store IGC data
         uploadedIGC.value = {
           file: file,
@@ -554,8 +530,6 @@ export default {
           trackDistance: distances.trackDistance,
           straightDistance: distances.straightDistance,
           maxAltitude: distances.maxAltitude || igcData.maxAltitude,
-          fileExists: false,
-          existingFiles: [],
           igcContent: fileContent,
         };
 
@@ -592,8 +566,6 @@ export default {
           gliderType: "",
           gliderSerial: "",
           totalFixes: 0,
-          fileExists: false,
-          existingFiles: [],
         };
       }
     };
@@ -618,7 +590,7 @@ export default {
               directory: Directory.Documents,
             });
           } catch (e) {
-            console.log("File may not exist:", e);
+            // File may not exist, ignore
           }
         }
       } catch (error) {
@@ -637,8 +609,6 @@ export default {
         gliderType: "",
         gliderSerial: "",
         totalFixes: 0,
-        fileExists: false,
-        existingFiles: [],
       };
 
       // Clear file input
@@ -647,46 +617,6 @@ export default {
       }
 
       igcUploadError.value = "";
-    };
-
-    const overwriteExisting = async () => {
-      try {
-        if (
-          uploadedIGC.value.existingFiles &&
-          uploadedIGC.value.existingFiles.length > 0
-        ) {
-          const oldFilename = uploadedIGC.value.existingFiles[0];
-          const formData = new FormData();
-          formData.append("igcFile", uploadedIGC.value.file);
-
-          const response = await fetch(
-            `http://localhost:3001/api/igc/replace/${oldFilename}`,
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(result.error || "Failed to replace IGC file");
-          }
-
-          uploadedIGC.value.filePath = result.filePath;
-          uploadedIGC.value.fileExists = false;
-          uploadedIGC.value.existingFiles = [];
-        }
-      } catch (error) {
-        console.error("Error overwriting IGC file:", error);
-        igcUploadError.value = error.message;
-      }
-    };
-
-    const keepBoth = () => {
-      // Just clear the conflict warning - the new file is already uploaded with a unique name
-      uploadedIGC.value.fileExists = false;
-      uploadedIGC.value.existingFiles = [];
     };
 
     // Computed property to format duration as HH:MM
@@ -928,8 +858,6 @@ export default {
         gliderType: "",
         gliderSerial: "",
         totalFixes: 0,
-        fileExists: false,
-        existingFiles: [],
       };
 
       // Clear IGC upload error
@@ -982,8 +910,6 @@ export default {
       handleFileSelect,
       uploadIGCFile,
       removeIGCFile,
-      overwriteExisting,
-      keepBoth,
     };
   },
 };

@@ -535,36 +535,26 @@ export default {
     },
 
     async exportAllData() {
-      console.log('Export function called');
       this.isExporting = true;
       
       try {
-        console.log('Starting export process...');
-        
         // Get all data from database
-        console.log('Fetching data from database...');
         const flights = await flightOperations.getAllFlights();
         const gear = await getAllGear();
         const maintenance = await getAllMaintenance();
-        console.log(`Fetched ${flights.length} flights, ${gear.length} gear, ${maintenance.length} maintenance records`);
 
         // Export database
-        console.log('Exporting database...');
         const dbExport = await flightOperations.exportDatabase();
-        console.log('Database export result:', dbExport.success);
 
         // Dynamically import JSZip only when needed
-        console.log('Loading JSZip...');
         const { default: JSZip } = await import('jszip');
         
         // Create ZIP file
-        console.log('Creating ZIP file...');
         const zip = new JSZip();
 
         // Add database export
         if (dbExport.success && dbExport.data) {
           zip.file('database.json', JSON.stringify(dbExport.data, null, 2));
-          console.log('Added database.json to ZIP');
         }
 
         // Add settings
@@ -579,10 +569,8 @@ export default {
           rescueWarningDuration: localStorage.getItem("rescueWarningDuration") || this.rescueWarningDuration,
         };
         zip.file('settings.json', JSON.stringify(settings, null, 2));
-        console.log('Added settings.json to ZIP');
 
         // Add all IGC files
-        console.log('Adding IGC files to ZIP...');
         let igcCount = 0;
         const igcFolder = zip.folder('igc');
         for (const flight of flights) {
@@ -600,10 +588,8 @@ export default {
             }
           }
         }
-        console.log(`Added ${igcCount} IGC files to ZIP`);
 
         // Add all attachment files
-        console.log('Adding attachment files to ZIP...');
         let attachmentCount = 0;
         const attachmentsFolder = zip.folder('attachments');
         for (const record of maintenance) {
@@ -621,20 +607,15 @@ export default {
             }
           }
         }
-        console.log(`Added ${attachmentCount} attachments to ZIP`);
 
         // Generate ZIP file as base64
-        console.log('Generating ZIP file...');
         const zipBlob = await zip.generateAsync({ type: 'base64' });
-        console.log('ZIP file generated');
 
         // Create filename with timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
         const filename = `paradash-backup-${timestamp}.zip`;
-        console.log(`Filename: ${filename}`);
 
         // Write ZIP to cache directory
-        console.log('Writing ZIP to cache...');
         await Filesystem.writeFile({
           path: filename,
           data: zipBlob,
@@ -642,16 +623,12 @@ export default {
         });
         
         // Get the file URI for sharing
-        console.log('Getting file URI...');
         const fileUri = await Filesystem.getUri({
           path: filename,
           directory: Directory.Cache,
         });
         
-        console.log('File URI:', fileUri.uri);
-        
         // Share the file - user can choose where to save it
-        console.log('Opening share dialog...');
         await Share.share({
           title: 'Save ParaDash Backup',
           text: `Complete backup: database, ${igcCount} IGC files, ${attachmentCount} attachments`,
@@ -659,7 +636,6 @@ export default {
           dialogTitle: 'Save Backup File',
         });
         
-        console.log('Export completed successfully');
         this.showMessage(
           `Backup created: ${flights.length} flights, ${igcCount} IGC files, ${attachmentCount} attachments`,
           "success"
@@ -673,13 +649,9 @@ export default {
     },
 
     handleBackupFileSelect(event) {
-      console.log('File select event triggered');
       const file = event.target.files[0];
-      console.log('Selected file:', file);
       
       if (file) {
-        console.log('File name:', file.name, 'Size:', file.size, 'Type:', file.type);
-        
         // Validate file - check both extension and MIME type
         const fileName = file.name.toLowerCase();
         const fileType = file.type.toLowerCase();
@@ -687,13 +659,6 @@ export default {
         const isZipMimeType = fileType === 'application/zip' || 
                                fileType === 'application/x-zip-compressed' ||
                                fileType === 'application/x-zip';
-        
-        console.log('File validation:', { 
-          fileName, 
-          fileType, 
-          isZipExtension, 
-          isZipMimeType 
-        });
         
         // Accept if either extension or MIME type indicates ZIP, or if no type info (mobile issue)
         if (!isZipExtension && !isZipMimeType && fileType !== '') {
@@ -705,16 +670,11 @@ export default {
         }
         
         this.selectedBackupFile = file;
-        console.log('File selected successfully:', file.name);
         this.showMessage(`Selected: ${file.name}`, "success");
-      } else {
-        console.log('No file selected');
       }
     },
 
     async importBackup() {
-      console.log('importBackup called, file:', this.selectedBackupFile?.name);
-      
       if (!this.selectedBackupFile) {
         const msg = "Please select a backup file first";
         this.showMessage(msg, "error");
@@ -730,21 +690,17 @@ export default {
       );
 
       if (!confirmed) {
-        console.log('Import cancelled by user');
         return;
       }
 
       this.isImporting = true;
       this.showMessage('Starting import...', 'success');
-      console.log('Starting import process...');
 
       try {
         // Dynamically import JSZip
-        console.log('Loading JSZip...');
         const { default: JSZip } = await import('jszip');
 
         // Read the file
-        console.log('Reading backup file...');
         const fileReader = new FileReader();
         
         const zipData = await new Promise((resolve, reject) => {
@@ -754,16 +710,12 @@ export default {
         });
 
         // Load ZIP
-        console.log('Loading ZIP archive...');
         const zip = await JSZip.loadAsync(zipData);
-        console.log('ZIP loaded, files:', Object.keys(zip.files));
 
         // Wipe existing data first
-        console.log('Clearing existing data...');
         await wipeAllData();
 
         // Import database
-        console.log('Importing database...');
         this.showMessage('Importing database...', 'success');
         
         const dbFile = zip.file('database.json');
@@ -772,21 +724,17 @@ export default {
         }
         
         const dbContent = await dbFile.async('string');
-        console.log('Database JSON size:', dbContent.length, 'bytes');
-        console.log('Database JSON preview:', dbContent.substring(0, 200));
         
         // Import using the database's import function
         // The database.json is already in the correct format from exportToJson
         try {
           await importFromJson(dbContent);
-          console.log('Database imported successfully');
         } catch (dbError) {
           console.error('Database import failed:', dbError);
           throw new Error(`Database import failed: ${dbError.message}`);
         }
 
         // Import settings
-        console.log('Importing settings...');
         const settingsFile = zip.file('settings.json');
         if (settingsFile) {
           const settingsContent = await settingsFile.async('string');
@@ -817,11 +765,9 @@ export default {
             localStorage.setItem('rescueWarningDuration', settings.rescueWarningDuration.toString());
             this.rescueWarningDuration = settings.rescueWarningDuration;
           }
-          console.log('Settings imported successfully');
         }
 
         // Import IGC files
-        console.log('Importing IGC files...');
         let igcCount = 0;
         for (const filename in zip.files) {
           if (filename.startsWith('igc/') && !zip.files[filename].dir) {
@@ -844,10 +790,8 @@ export default {
             }
           }
         }
-        console.log(`Imported ${igcCount} IGC files`);
 
         // Import attachments
-        console.log('Importing attachments...');
         let attachmentCount = 0;
         for (const filename in zip.files) {
           if (filename.startsWith('attachments/') && !zip.files[filename].dir) {
@@ -869,7 +813,6 @@ export default {
             }
           }
         }
-        console.log(`Imported ${attachmentCount} attachments`);
 
         // Reload data counts
         await this.loadDataCounts();
@@ -878,7 +821,6 @@ export default {
         this.selectedBackupFile = null;
         this.$refs.backupFileInput.value = '';
 
-        console.log('Import completed successfully');
         const successMsg = `Import successful! Restored ${igcCount} IGC files and PDF ${attachmentCount} attachments.`;
         this.showMessage(successMsg, "success");
         
