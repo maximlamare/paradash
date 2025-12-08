@@ -64,6 +64,8 @@
 </template>
 
 <script>
+import { App } from '@capacitor/app';
+
 export default {
   name: "App",
   data() {
@@ -90,6 +92,30 @@ export default {
         this.closeSidebar();
       }
     });
+
+    // Handle hardware back button
+    App.addListener('backButton', ({ canGoBack }) => {
+      // Close sidebar if open
+      if (this.sidebarOpen) {
+        this.closeSidebar();
+        return;
+      }
+
+      // Check if we're on the main page (FlightsList)
+      const isMainPage = this.$route.path === '/';
+      
+      if (!isMainPage && canGoBack) {
+        // Navigate back within the app
+        this.$router.go(-1);
+      } else {
+        // On main page or can't go back - exit the app
+        App.exitApp();
+      }
+    });
+  },
+  beforeUnmount() {
+    // Clean up the listener when component is destroyed
+    App.removeAllListeners();
   },
 };
 </script>

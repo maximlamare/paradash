@@ -79,6 +79,14 @@
               <label>Purchase Date:</label>
               <span>{{ formatDate(gear.purchase_date) }}</span>
             </div>
+            <div class="info-item" v-if="gear.serial_number">
+              <label>Serial Number:</label>
+              <span>{{ gear.serial_number }}</span>
+            </div>
+            <div class="info-item" v-if="gear.notes">
+              <label>Notes:</label>
+              <span>{{ gear.notes }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -208,6 +216,26 @@
               id="editPurchaseDate"
               v-model="editForm.purchase_date"
             />
+          </div>
+
+          <div class="form-group">
+            <label for="editSerialNumber">Serial Number (Optional)</label>
+            <input
+              type="text"
+              id="editSerialNumber"
+              v-model="editForm.serial_number"
+              placeholder="e.g., SN12345"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="editNotes">Notes (Optional)</label>
+            <textarea
+              id="editNotes"
+              v-model="editForm.notes"
+              placeholder="Any additional notes about this gear..."
+              rows="3"
+            ></textarea>
           </div>
 
           <div class="form-actions">
@@ -547,6 +575,8 @@ export default {
       model: "",
       manufacturing_date: "",
       purchase_date: "",
+      serial_number: "",
+      notes: "",
     });
 
     // Load gear details
@@ -563,6 +593,8 @@ export default {
           model: gear.value.model,
           manufacturing_date: gear.value.manufacturing_date || "",
           purchase_date: gear.value.purchase_date || "",
+          serial_number: gear.value.serial_number || "",
+          notes: gear.value.notes || "",
         };
       } catch (err) {
         error.value = "Failed to load gear details";
@@ -629,6 +661,8 @@ export default {
         model: gear.value.model,
         manufacturing_date: gear.value.manufacturing_date || "",
         purchase_date: gear.value.purchase_date || "",
+        serial_number: gear.value.serial_number || "",
+        notes: gear.value.notes || "",
       };
     };
 

@@ -78,6 +78,28 @@
             />
           </div>
 
+          <div class="form-group">
+            <label for="serialNumber">Serial Number (Optional)</label>
+            <input
+              type="text"
+              id="serialNumber"
+              v-model="newGear.serialNumber"
+              placeholder="e.g., SN12345"
+              class="form-control"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="notes">Notes (Optional)</label>
+            <textarea
+              id="notes"
+              v-model="newGear.notes"
+              placeholder="Any additional notes about this gear..."
+              rows="3"
+              class="form-control"
+            ></textarea>
+          </div>
+
           <div class="modal-actions">
             <button type="button" @click="closeModal" class="cancel-btn">
               Cancel
@@ -285,6 +307,8 @@ export default {
       model: "",
       manufacturingDate: "",
       purchaseDate: "",
+      serialNumber: "",
+      notes: "",
     });
 
     // Load gear data from database
@@ -519,6 +543,8 @@ export default {
         model: "",
         manufacturingDate: "",
         purchaseDate: "",
+        serialNumber: "",
+        notes: "",
       };
     };
 
@@ -539,6 +565,8 @@ export default {
           type: newGear.value.type,
           manufacturing_date: newGear.value.manufacturingDate,
           purchase_date: newGear.value.purchaseDate,
+          serial_number: newGear.value.serialNumber,
+          notes: newGear.value.notes,
         };
 
         // Add to database

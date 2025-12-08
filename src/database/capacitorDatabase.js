@@ -23,6 +23,8 @@ const CREATE_GEAR_TABLE = `
     model TEXT NOT NULL,
     manufacturing_date TEXT,
     purchase_date TEXT,
+    serial_number TEXT,
+    notes TEXT,
     is_active INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -111,6 +113,22 @@ export async function initializeDatabase() {
     await db.execute(CREATE_GEAR_TABLE);
     await db.execute(CREATE_FLIGHTS_TABLE);
     await db.execute(CREATE_MAINTENANCE_TABLE);
+
+    // Run migrations for existing databases
+    try {
+      // Add serial_number and notes columns if they don't exist
+      await db.execute('ALTER TABLE gear ADD COLUMN serial_number TEXT');
+      console.log('Added serial_number column to gear table');
+    } catch (e) {
+      // Column already exists, ignore
+    }
+    
+    try {
+      await db.execute('ALTER TABLE gear ADD COLUMN notes TEXT');
+      console.log('Added notes column to gear table');
+    } catch (e) {
+      // Column already exists, ignore
+    }
 
     console.log('Database tables created/verified');
     isInitialized = true;
@@ -329,11 +347,11 @@ export const nativeGearOperations = {
   add: async (gear) => {
     try {
       await initializeDatabase();
-      const { manufacturer, model, type, manufacturing_date, purchase_date } = gear;
+      const { manufacturer, model, type, manufacturing_date, purchase_date, serial_number, notes } = gear;
 
       const result = await db.run(
-        `INSERT INTO gear (manufacturer, model, type, manufacturing_date, purchase_date) VALUES (?, ?, ?, ?, ?)`,
-        [manufacturer, model, type, manufacturing_date, purchase_date]
+        `INSERT INTO gear (manufacturer, model, type, manufacturing_date, purchase_date, serial_number, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [manufacturer, model, type, manufacturing_date, purchase_date, serial_number || null, notes || null]
       );
 
       const gearId = result.changes?.lastId;
@@ -357,11 +375,11 @@ export const nativeGearOperations = {
   update: async (id, gear) => {
     try {
       await initializeDatabase();
-      const { manufacturer, model, type, manufacturing_date, purchase_date } = gear;
+      const { manufacturer, model, type, manufacturing_date, purchase_date, serial_number, notes } = gear;
 
       await db.run(
-        `UPDATE gear SET manufacturer = ?, model = ?, type = ?, manufacturing_date = ?, purchase_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [manufacturer, model, type, manufacturing_date, purchase_date, id]
+        `UPDATE gear SET manufacturer = ?, model = ?, type = ?, manufacturing_date = ?, purchase_date = ?, serial_number = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [manufacturer, model, type, manufacturing_date, purchase_date, serial_number || null, notes || null, id]
       );
 
       return { id, ...gear };

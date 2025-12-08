@@ -12,6 +12,7 @@
   "dependencies": {
     "@capacitor-community/sqlite": "^7.0.2",
     "@capacitor/android": "^7.4.4",
+    "@capacitor/app": "^7.0.2",
     "@capacitor/core": "^7.4.4",
     "@capacitor/filesystem": "^7.1.5",
     "@capacitor/share": "^7.0.2",
