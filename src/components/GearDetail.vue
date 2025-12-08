@@ -476,9 +476,8 @@
 <script>
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Capacitor } from "@capacitor/core";
-import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
-import { gearOperations, maintenanceOperations } from "../database/database.js";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { gearOperations, maintenanceOperations, flightOperations } from "../database/database.js";
 import { formatDate } from "../utils/dateUtils.js";
 
 export default {
@@ -523,7 +522,7 @@ export default {
       category: "",
       description: "",
     });
-    const isNativePlatform = Capacitor.isNativePlatform();
+    const isNativePlatform = true; // Mobile-only app
 
     // Load maintenance categories from settings
     const loadMaintenanceCategories = () => {
@@ -643,19 +642,8 @@ export default {
 
       loadingMaintenance.value = true;
       try {
-        const isNative = Capacitor.isNativePlatform();
-        
-        if (isNative) {
-          // Use native database operations
-          maintenanceRecords.value = await maintenanceOperations.getByGearId(gear.value.id);
-        } else {
-          // Use web API
-          const response = await fetch(
-            `http://localhost:3001/api/gear/${gear.value.id}/maintenance`
-          );
-          const data = await response.json();
-          maintenanceRecords.value = data.data || [];
-        }
+        // Use native database operations
+        maintenanceRecords.value = await maintenanceOperations.getByGearId(gear.value.id);
       } catch (error) {
         console.error("Error loading maintenance records:", error);
         errorMessage.value = "Failed to load maintenance records";
@@ -669,11 +657,9 @@ export default {
       if (!gear.value || gear.value.type !== "gliders") return;
 
       try {
-        const response = await fetch(
-          `http://localhost:3001/api/gear/${gear.value.id}/flights`
-        );
-        const data = await response.json();
-        flights.value = data.data || [];
+        // Get all flights and filter by glider
+        const allFlights = await flightOperations.getAllFlights();
+        flights.value = allFlights.filter(f => f.glider === gear.value.id);
       } catch (error) {
         console.error("Error loading flights:", error);
         flights.value = [];
@@ -696,47 +682,23 @@ export default {
     const addMaintenanceRecord = async () => {
       uploading.value = true;
       try {
-        const isNative = Capacitor.isNativePlatform();
         let attachmentPath = null;
         let attachmentFilename = null;
 
-        // Handle PDF upload
+        // Handle PDF upload - store locally
         if (selectedPdf.value) {
-          if (isNative) {
-            // Store PDF locally on native platform
-            const base64Data = await readFileAsBase64(selectedPdf.value);
-            const fileName = `${Date.now()}_${selectedPdf.value.name}`;
-            
-            await Filesystem.writeFile({
-              path: `maintenance_pdfs/${fileName}`,
-              data: base64Data,
-              directory: Directory.Documents,
-              recursive: true,
-            });
-            
-            attachmentPath = fileName;
-            attachmentFilename = selectedPdf.value.name;
-          } else {
-            // Upload to server on web
-            const formData = new FormData();
-            formData.append("pdfFile", selectedPdf.value);
-
-            const uploadResponse = await fetch(
-              "http://localhost:3001/api/maintenance/upload-pdf",
-              {
-                method: "POST",
-                body: formData,
-              }
-            );
-
-            if (!uploadResponse.ok) {
-              throw new Error("Failed to upload PDF");
-            }
-
-            const uploadResult = await uploadResponse.json();
-            attachmentPath = uploadResult.path;
-            attachmentFilename = uploadResult.originalName;
-          }
+          const base64Data = await readFileAsBase64(selectedPdf.value);
+          const fileName = `${Date.now()}_${selectedPdf.value.name}`;
+          
+          await Filesystem.writeFile({
+            path: `maintenance_pdfs/${fileName}`,
+            data: base64Data,
+            directory: Directory.Documents,
+            recursive: true,
+          });
+          
+          attachmentPath = fileName;
+          attachmentFilename = selectedPdf.value.name;
         }
 
         const maintenanceData = {
@@ -747,26 +709,8 @@ export default {
           attachment_filename: attachmentFilename,
         };
 
-        if (isNative) {
-          // Use native database operations
-          await maintenanceOperations.add(gear.value.id, maintenanceData);
-        } else {
-          // Use web API
-          const response = await fetch(
-            `http://localhost:3001/api/gear/${gear.value.id}/maintenance`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(maintenanceData),
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error("Failed to add maintenance record");
-          }
-        }
+        // Use native database operations
+        await maintenanceOperations.add(gear.value.id, maintenanceData);
 
         await loadMaintenanceRecords();
         closeAddMaintenanceModal();
@@ -789,16 +733,7 @@ export default {
       }
 
       try {
-        const response = await fetch(
-          `http://localhost:3001/api/maintenance/${recordId}`,
-          {
-            method: "DELETE",
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to delete maintenance record");
-        }
+        await maintenanceOperations.delete(recordId);
 
         await loadMaintenanceRecords();
         successMessage.value = "Maintenance record deleted successfully";
@@ -811,61 +746,53 @@ export default {
     };
 
     const viewPdf = async (filename) => {
-      const isNative = Capacitor.isNativePlatform();
-      
-      if (isNative) {
+      try {
+        // Get the file URI
+        const uriResult = await Filesystem.getUri({
+          path: `maintenance_pdfs/${filename}`,
+          directory: Directory.Documents,
+        });
+        
+        console.log("PDF URI:", uriResult.uri);
+        
+        // On Android, we need to use a content:// URI or share intent
+        const { Share } = await import('@capacitor/share');
+        
+        await Share.share({
+          title: 'View PDF',
+          text: 'Opening maintenance document',
+          url: uriResult.uri,
+          dialogTitle: 'Open PDF with...',
+        });
+      } catch (shareError) {
+        console.error("Share error:", shareError);
+        
+        // Fallback: try reading and displaying inline
         try {
-          // Get the file URI
-          const uriResult = await Filesystem.getUri({
+          const fileResult = await Filesystem.readFile({
             path: `maintenance_pdfs/${filename}`,
             directory: Directory.Documents,
           });
           
-          console.log("PDF URI:", uriResult.uri);
+          // Create a data URL and try to open it
+          const dataUrl = `data:application/pdf;base64,${fileResult.data}`;
           
-          // On Android, we need to use a content:// URI or share intent
-          // Try using the Browser plugin or share functionality
-          const { Share } = await import('@capacitor/share');
+          // Create a temporary link and click it
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = filename;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
           
-          await Share.share({
-            title: 'View PDF',
-            text: 'Opening maintenance document',
-            url: uriResult.uri,
-            dialogTitle: 'Open PDF with...',
-          });
-        } catch (shareError) {
-          console.error("Share error:", shareError);
-          
-          // Fallback: try reading and displaying inline
-          try {
-            const fileResult = await Filesystem.readFile({
-              path: `maintenance_pdfs/${filename}`,
-              directory: Directory.Documents,
-            });
-            
-            // Create a data URL and try to open it
-            const dataUrl = `data:application/pdf;base64,${fileResult.data}`;
-            
-            // Create a temporary link and click it
-            const link = document.createElement('a');
-            link.href = dataUrl;
-            link.download = filename;
-            link.target = '_blank';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            successMessage.value = "PDF downloaded. Check your downloads.";
-            setTimeout(() => (successMessage.value = ""), 3000);
-          } catch (fallbackError) {
-            console.error("Fallback error:", fallbackError);
-            errorMessage.value = "Could not open PDF. File may not exist.";
-            setTimeout(() => (errorMessage.value = ""), 3000);
-          }
+          successMessage.value = "PDF downloaded. Check your downloads.";
+          setTimeout(() => (successMessage.value = ""), 3000);
+        } catch (fallbackError) {
+          console.error("Fallback error:", fallbackError);
+          errorMessage.value = "Could not open PDF. File may not exist.";
+          setTimeout(() => (errorMessage.value = ""), 3000);
         }
-      } else {
-        const pdfUrl = `http://localhost:3001/api/maintenance/pdf/${filename}`;
-        window.open(pdfUrl, "_blank");
       }
     };
 
@@ -924,45 +851,19 @@ export default {
         }
 
         try {
-          const isNative = Capacitor.isNativePlatform();
-          let attachmentPath = null;
-          let attachmentFilename = null;
-
-          if (isNative) {
-            // Store PDF locally on native platform
-            const base64Data = await readFileAsBase64(file);
-            const fileName = `${Date.now()}_${file.name}`;
-            
-            await Filesystem.writeFile({
-              path: `maintenance_pdfs/${fileName}`,
-              data: base64Data,
-              directory: Directory.Documents,
-              recursive: true,
-            });
-            
-            attachmentPath = fileName;
-            attachmentFilename = file.name;
-          } else {
-            // Upload to server on web
-            const formData = new FormData();
-            formData.append("pdfFile", file);
-
-            const uploadResponse = await fetch(
-              "http://localhost:3001/api/maintenance/upload-pdf",
-              {
-                method: "POST",
-                body: formData,
-              }
-            );
-
-            if (!uploadResponse.ok) {
-              throw new Error("Failed to upload PDF");
-            }
-
-            const uploadResult = await uploadResponse.json();
-            attachmentPath = uploadResult.path;
-            attachmentFilename = uploadResult.originalName;
-          }
+          // Store PDF locally
+          const base64Data = await readFileAsBase64(file);
+          const fileName = `${Date.now()}_${file.name}`;
+          
+          await Filesystem.writeFile({
+            path: `maintenance_pdfs/${fileName}`,
+            data: base64Data,
+            directory: Directory.Documents,
+            recursive: true,
+          });
+          
+          const attachmentPath = fileName;
+          const attachmentFilename = file.name;
 
           // Get the current maintenance record to preserve existing data
           const currentRecord = maintenanceRecords.value.find(
@@ -981,24 +882,7 @@ export default {
           };
 
           // Update the maintenance record with the attachment
-          if (isNative) {
-            await maintenanceOperations.update(recordId, updateData);
-          } else {
-            const updateResponse = await fetch(
-              `http://localhost:3001/api/maintenance/${recordId}`,
-              {
-                method: "PUT",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(updateData),
-              }
-            );
-
-            if (!updateResponse.ok) {
-              throw new Error("Failed to update maintenance record");
-            }
-          }
+          await maintenanceOperations.update(recordId, updateData);
 
           // Reload maintenance records to show the new attachment
           await loadMaintenanceRecords();
@@ -1027,45 +911,26 @@ export default {
           throw new Error("Maintenance record not found");
         }
 
-        // If there's an attachment, delete the file first
+        // If there's an attachment, delete the file locally
         if (currentRecord.attachment_path) {
-          const deleteFileResponse = await fetch(
-            `http://localhost:3001/api/maintenance/delete-file/${encodeURIComponent(
-              currentRecord.attachment_path
-            )}`,
-            {
-              method: "DELETE",
-            }
-          );
-
-          if (!deleteFileResponse.ok) {
-            console.warn(
-              "Failed to delete file from server, continuing with record update"
-            );
+          try {
+            await Filesystem.deleteFile({
+              path: `maintenance_pdfs/${currentRecord.attachment_path}`,
+              directory: Directory.Documents,
+            });
+          } catch (e) {
+            console.warn("Failed to delete file locally:", e);
           }
         }
 
         // Update the maintenance record to remove the attachment
-        const updateResponse = await fetch(
-          `http://localhost:3001/api/maintenance/${recordId}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              date: currentRecord.date,
-              category: currentRecord.category,
-              description: currentRecord.description,
-              attachment_path: null,
-              attachment_filename: null,
-            }),
-          }
-        );
-
-        if (!updateResponse.ok) {
-          throw new Error("Failed to remove document");
-        }
+        await maintenanceOperations.update(recordId, {
+          date: currentRecord.date,
+          category: currentRecord.category,
+          description: currentRecord.description,
+          attachment_path: null,
+          attachment_filename: null,
+        });
 
         // Reload maintenance records to show the change
         await loadMaintenanceRecords();
@@ -1228,11 +1093,7 @@ export default {
     const openMaintenanceDetail = (record) => {
       selectedMaintenance.value = record;
       showMaintenanceDetail.value = true;
-      
-      // Generate PDF preview URL for web
-      if (!isNativePlatform && record.attachment_path) {
-        pdfPreviewUrl.value = `http://localhost:3001/api/maintenance/pdf/${record.attachment_path}`;
-      }
+      pdfPreviewUrl.value = null; // No web preview on mobile-only app
     };
 
     const closeMaintenanceDetail = () => {
@@ -1257,7 +1118,6 @@ export default {
     const saveMaintenanceEdit = async () => {
       try {
         const recordId = selectedMaintenance.value.id;
-        const isNative = Capacitor.isNativePlatform();
         
         const updateData = {
           date: editMaintenanceForm.value.date,
@@ -1267,24 +1127,7 @@ export default {
           attachment_filename: selectedMaintenance.value.attachment_filename || null,
         };
 
-        if (isNative) {
-          await maintenanceOperations.update(recordId, updateData);
-        } else {
-          const response = await fetch(
-            `http://localhost:3001/api/maintenance/${recordId}`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(updateData),
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error("Failed to update maintenance record");
-          }
-        }
+        await maintenanceOperations.update(recordId, updateData);
 
         await loadMaintenanceRecords();
         closeEditMaintenanceModal();
@@ -1305,22 +1148,7 @@ export default {
       
       try {
         const recordId = selectedMaintenance.value.id;
-        const isNative = Capacitor.isNativePlatform();
-        
-        if (isNative) {
-          await maintenanceOperations.delete(recordId);
-        } else {
-          const response = await fetch(
-            `http://localhost:3001/api/maintenance/${recordId}`,
-            {
-              method: "DELETE",
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error("Failed to delete maintenance record");
-          }
-        }
+        await maintenanceOperations.delete(recordId);
 
         await loadMaintenanceRecords();
         closeMaintenanceDetail();

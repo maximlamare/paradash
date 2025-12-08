@@ -268,6 +268,7 @@ export default {
   max-width: 1200px;
   margin: 0 auto;
   transition: margin-left 0.3s ease;
+  overflow-x: hidden;
 }
 
 @media (max-width: 768px) {

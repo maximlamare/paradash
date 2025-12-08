@@ -145,25 +145,3 @@ export function calculateIGCDistances(igcContent) {
   };
 }
 
-/**
- * Read IGC file from filesystem and calculate distances
- * @param {string} igcFilePath - Path to IGC file
- * @returns {Promise<object>} Object with trackDistance and straightDistance
- */
-export async function calculateDistancesFromFile(igcFilePath) {
-  try {
-    const fs = await import("fs/promises");
-    const path = await import("path");
-
-    // Handle both absolute and relative paths
-    const fullPath = path.isAbsolute(igcFilePath)
-      ? igcFilePath
-      : path.join(process.cwd(), igcFilePath);
-
-    const igcContent = await fs.readFile(fullPath, "utf-8");
-    return calculateIGCDistances(igcContent);
-  } catch (error) {
-    console.error("Error reading IGC file:", error);
-    return { trackDistance: 0, straightDistance: 0 };
-  }
-}

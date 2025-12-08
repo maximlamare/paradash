@@ -444,7 +444,6 @@
 
 <script>
 import { flightOperations, gearOperations } from "../database/database.js";
-import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
 import IGCParser from "igc-parser";
 import L from "leaflet";
@@ -659,16 +658,8 @@ export default {
       try {
         console.log("Loading track data for:", this.flight.igcFilePath);
         
-        const platform = Capacitor.getPlatform();
-        const isNative = platform === "android" || platform === "ios";
-
-        if (isNative) {
-          // Native platform: Read IGC file from device and parse locally
-          await this.loadTrackDataNative();
-        } else {
-          // Web platform: Use server API
-          await this.loadTrackDataWeb();
-        }
+        // Read IGC file from device and parse locally
+        await this.loadTrackDataNative();
 
         // Initialize map after data is loaded with a small delay
         if (this.trackData && this.trackData.trackPoints) {
@@ -748,19 +739,6 @@ export default {
         // File might not exist locally, show appropriate message
         this.trackError = "IGC file not available on device";
       }
-    },
-
-    async loadTrackDataWeb() {
-      const response = await fetch(
-        `http://localhost:3001/api/igc/track/${this.flight.igcFilePath}`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to load track data");
-      }
-
-      this.trackData = await response.json();
-      console.log("Track data loaded (web):", this.trackData);
     },
 
     initializeMap() {
@@ -894,12 +872,15 @@ export default {
       if (!this.flight.igcFilePath) return;
 
       try {
-        const response = await fetch(
-          `http://localhost:3001/api/igc/download/${this.flight.igcFilePath}`
-        );
-        if (!response.ok) throw new Error("Failed to download IGC file");
+        // Read IGC file from device storage
+        const result = await Filesystem.readFile({
+          path: `igc/${this.flight.igcFilePath}`,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,
+        });
 
-        const blob = await response.blob();
+        // Create a blob and trigger download
+        const blob = new Blob([result.data], { type: "application/octet-stream" });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
@@ -1008,68 +989,38 @@ export default {
 
       this.uploadingIgc = true;
       try {
-        const platform = Capacitor.getPlatform();
-        const isNative = platform === "android" || platform === "ios";
+        // Parse locally and store with Filesystem
+        const fileContent = await this.readFileAsText(this.newIgcFile);
+        const igcData = this.parseIGCContent(fileContent);
 
-        if (isNative) {
-          // Native platform: Parse locally and store with Filesystem
-          const fileContent = await this.readFileAsText(this.newIgcFile);
-          const igcData = this.parseIGCContent(fileContent);
+        // Check if this IGC file already exists for another flight based on date and start time
+        const existingFlights = await flightOperations.getAllFlights();
+        const duplicate = existingFlights.find(f => 
+          f.id !== this.flight.id && // Not the current flight
+          f.date === igcData.date &&
+          f.flightStart === igcData.startTime &&
+          f.igcFilePath // Has an IGC file
+        );
 
-          // Check if this IGC file already exists for another flight based on date and start time
-          const existingFlights = await flightOperations.getAllFlights();
-          const duplicate = existingFlights.find(f => 
-            f.id !== this.flight.id && // Not the current flight
-            f.date === igcData.date &&
-            f.flightStart === igcData.startTime &&
-            f.igcFilePath // Has an IGC file
-          );
-
-          if (duplicate) {
-            throw new Error(`A flight with the same IGC data already exists (${duplicate.date} at ${duplicate.flightStart})`);
-          }
-
-          // Store IGC file in app's documents directory (use original filename)
-          const fileName = this.newIgcFile.name;
-          await Filesystem.writeFile({
-            path: `igc/${fileName}`,
-            data: fileContent,
-            directory: Directory.Documents,
-            encoding: Encoding.UTF8,
-            recursive: true,
-          });
-
-          return {
-            filename: fileName,
-            igcSerial: igcData.gliderSerial || "",
-            ...igcData,
-          };
-        } else {
-          // Web platform: Use server API
-          const formData = new FormData();
-          formData.append("igcFile", this.newIgcFile);
-
-          const response = await fetch("http://localhost:3001/api/igc/upload", {
-            method: "POST",
-            body: formData,
-          });
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            // Handle duplicate error specifically
-            if (response.status === 409) {
-              throw new Error(result.message || "This IGC file already exists");
-            }
-            throw new Error(result.error || "Failed to upload IGC file");
-          }
-
-          return {
-            filename: result.filePath,
-            igcSerial: result.igcData?.gliderSerial || "",
-            ...result.igcData,
-          };
+        if (duplicate) {
+          throw new Error(`A flight with the same IGC data already exists (${duplicate.date} at ${duplicate.flightStart})`);
         }
+
+        // Store IGC file in app's documents directory (use original filename)
+        const fileName = this.newIgcFile.name;
+        await Filesystem.writeFile({
+          path: `igc/${fileName}`,
+          data: fileContent,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,
+          recursive: true,
+        });
+
+        return {
+          filename: fileName,
+          igcSerial: igcData.gliderSerial || "",
+          ...igcData,
+        };
       } catch (error) {
         throw error;
       } finally {

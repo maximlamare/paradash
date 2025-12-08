@@ -531,48 +531,8 @@ export default {
     },
 
     async exportAllData() {
-      this.isExporting = true;
-
-      try {
-        const response = await fetch("http://localhost:3001/api/export/full");
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        // Get filename from Content-Disposition header
-        const contentDisposition = response.headers.get("content-disposition");
-        let filename = "paradash_backup.zip";
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(
-            /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
-          );
-          if (filenameMatch && filenameMatch[1]) {
-            filename = filenameMatch[1].replace(/['"]/g, "");
-          }
-        }
-
-        // Create blob and download
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        this.showMessage(
-          `Successfully exported all data (${this.flightCount} flights, ${this.gearCount} gear, ${this.maintenanceCount} maintenance records, and all IGC files)`,
-          "success"
-        );
-      } catch (error) {
-        console.error("Export error:", error);
-        this.showMessage("Error during export: " + error.message, "error");
-      } finally {
-        this.isExporting = false;
-      }
+      // Export not yet implemented for mobile - data is stored in app's local database
+      this.showMessage("Export feature coming soon. Data is safely stored in your app's local database.", "error");
     },
 
     handleBackupFileSelect(event) {
@@ -589,122 +549,13 @@ export default {
     },
 
     async importBackup() {
-      if (!this.selectedBackupFile) {
-        this.showMessage("Please select a backup file to import", "error");
-        return;
-      }
-
-      // Confirm with user
-      if (
-        !confirm(
-          "⚠️ WARNING: This will replace ALL existing data including flights, gear, maintenance records, and IGC files.\n\nAre you sure you want to continue?"
-        )
-      ) {
-        return;
-      }
-
-      this.isImporting = true;
-
-      try {
-        const formData = new FormData();
-        formData.append("backup", this.selectedBackupFile);
-
-        const response = await fetch(
-          "http://localhost:3001/api/import/full",
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to import backup");
-        }
-
-        const result = await response.json();
-        this.showMessage(
-          `Backup imported successfully! ${
-            result.imported.flights || 0
-          } flights, ${result.imported.gear || 0} gear items, ${
-            result.imported.maintenance || 0
-          } maintenance records, and ${result.imported.igcFiles || 0} IGC files.`,
-          "success"
-        );
-
-        // Reset file selection
-        this.selectedBackupFile = null;
-        this.$refs.backupFileInput.value = "";
-
-        // Reload data counts
-        await this.loadDataCounts();
-      } catch (error) {
-        console.error("Import error:", error);
-        this.showMessage("Error during import: " + error.message, "error");
-      } finally {
-        this.isImporting = false;
-      }
+      // Import not yet implemented for mobile
+      this.showMessage("Import feature coming soon.", "error");
     },
 
     async wipeDatabase() {
-      // First confirmation
-      const firstConfirm = confirm(
-        "⚠️ WARNING: You are about to permanently delete ALL data from the database.\n\n" +
-          "This includes:\n" +
-          "- All flight records\n" +
-          "- All gear items\n" +
-          "- All maintenance records\n" +
-          "- All IGC files\n\n" +
-          "This action CANNOT be undone!\n\n" +
-          "Are you sure you want to continue?"
-      );
-
-      if (!firstConfirm) {
-        return;
-      }
-
-      // Second confirmation with typing requirement
-      const confirmText = prompt(
-        "To confirm deletion, please type 'DELETE ALL DATA' (case sensitive):"
-      );
-
-      if (confirmText !== "DELETE ALL DATA") {
-        this.showMessage(
-          "Database wipe cancelled - confirmation text did not match",
-          "error"
-        );
-        return;
-      }
-
-      this.isWiping = true;
-
-      try {
-        const response = await fetch(
-          "http://localhost:3001/api/database/wipe",
-          {
-            method: "POST",
-          }
-        );
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to wipe database");
-        }
-
-        const result = await response.json();
-        this.showMessage(
-          `Database wiped successfully. Deleted ${result.deleted.flights} flights, ${result.deleted.gear} gear items, ${result.deleted.maintenance} maintenance records, and ${result.deleted.igcFiles || 0} IGC files.`,
-          "success"
-        );
-
-        // Reload data counts
-        await this.loadDataCounts();
-      } catch (error) {
-        console.error("Wipe error:", error);
-        this.showMessage("Error wiping database: " + error.message, "error");
-      } finally {
-        this.isWiping = false;
-      }
+      // Wipe not yet implemented for mobile - would need native database clearing
+      this.showMessage("Database wipe feature coming soon.", "error");
     },
   },
 };

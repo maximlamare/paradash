@@ -371,7 +371,7 @@
           <line
             v-for="i in 4"
             :key="'grid-' + i"
-            x1="60"
+            x1="80"
             :y1="60 + (i - 1) * 75"
             x2="780"
             :y2="60 + (i - 1) * 75"
@@ -382,7 +382,7 @@
           
           <!-- Bottom axis line -->
           <line
-            x1="60"
+            x1="80"
             y1="285"
             x2="780"
             y2="285"
@@ -394,7 +394,7 @@
           <text
             v-for="(label, i) in flightDistanceChartData.yLabels"
             :key="'y-label-' + i"
-            x="55"
+            x="75"
             :y="290 - i * 75"
             text-anchor="end"
             class="chart-y-label"
@@ -493,142 +493,148 @@
     <div class="card activity-grid-card">
       <h3>Flight Timing</h3>
       <div class="activity-grids-wrapper">
-        <div class="activity-grid-container">
-          <div v-if="activityGridData.months.length > 0" class="activity-grid">
-            <!-- Month labels -->
-            <div class="month-labels">
-              <div class="day-label-spacer"></div>
-              <div
-                v-for="(month, index) in activityGridData.months"
-                :key="'month-' + index"
-                class="month-label"
-              >
-                {{ month.label }}
-              </div>
-            </div>
-
-            <!-- Grid with day labels and cells -->
-            <div class="grid-container">
-              <!-- Day labels column -->
-              <div class="day-labels">
-                <div class="day-label">Mon</div>
-                <div class="day-label">Tue</div>
-                <div class="day-label">Wed</div>
-                <div class="day-label">Thu</div>
-                <div class="day-label">Fri</div>
-                <div class="day-label">Sat</div>
-                <div class="day-label">Sun</div>
-              </div>
-
-              <!-- Grid of days -->
-              <div class="grid-wrapper">
+        <!-- Monthly Grid -->
+        <div class="activity-grid-section">
+          <div class="activity-grid-container">
+            <div v-if="activityGridData.months.length > 0" class="activity-grid">
+              <!-- Month labels -->
+              <div class="month-labels">
+                <div class="day-label-spacer"></div>
                 <div
-                  v-for="(month, monthIndex) in activityGridData.months"
-                  :key="'month-' + monthIndex"
-                  class="month-column"
+                  v-for="(month, index) in activityGridData.months"
+                  :key="'month-' + index"
+                  class="month-label"
                 >
+                  {{ month.label }}
+                </div>
+              </div>
+
+              <!-- Grid with day labels and cells -->
+              <div class="grid-container">
+                <!-- Day labels column -->
+                <div class="day-labels">
+                  <div class="day-label">Mon</div>
+                  <div class="day-label">Tue</div>
+                  <div class="day-label">Wed</div>
+                  <div class="day-label">Thu</div>
+                  <div class="day-label">Fri</div>
+                  <div class="day-label">Sat</div>
+                  <div class="day-label">Sun</div>
+                </div>
+
+                <!-- Grid of days -->
+                <div class="grid-wrapper">
                   <div
-                    v-for="(day, dayIndex) in month.days"
-                    :key="'day-' + dayIndex"
-                    class="day-cell"
-                    :class="[
-                      day.level,
-                      {
-                        selected:
-                          selectedActivityCell &&
-                          selectedActivityCell.monthIndex === monthIndex &&
-                          selectedActivityCell.dayIndex === dayIndex,
-                      },
-                    ]"
-                    :title="day.tooltip"
-                    @click="
-                      selectActivityCell(
-                        $event,
-                        monthIndex,
-                        dayIndex,
-                        day,
-                        month.label
-                      )
-                    "
-                  ></div>
+                    v-for="(month, monthIndex) in activityGridData.months"
+                    :key="'month-' + monthIndex"
+                    class="month-column"
+                  >
+                    <div
+                      v-for="(day, dayIndex) in month.days"
+                      :key="'day-' + dayIndex"
+                      class="day-cell"
+                      :class="[
+                        day.level,
+                        {
+                          selected:
+                            selectedActivityCell &&
+                            !selectedActivityCell.isHourly &&
+                            selectedActivityCell.monthIndex === monthIndex &&
+                            selectedActivityCell.dayIndex === dayIndex,
+                        },
+                      ]"
+                      :title="day.tooltip"
+                      @click="
+                        selectActivityCell(
+                          $event,
+                          monthIndex,
+                          dayIndex,
+                          day,
+                          month.label
+                        )
+                      "
+                    ></div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div v-else class="no-data">
-            No flight data available for the selected time-frame
+            <div v-else class="no-data">
+              No flight data available for the selected time-frame
+            </div>
           </div>
         </div>
 
         <!-- Hourly Activity Grid -->
-        <div class="activity-grid-container">
-          <div
-            v-if="activityGridDataHourly.hours.length > 0"
-            class="activity-grid"
-          >
-            <!-- Hour labels -->
-            <div class="month-labels">
-              <div class="day-label-spacer"></div>
-              <div
-                v-for="(hour, index) in activityGridDataHourly.hours"
-                :key="'hour-' + index"
-                class="month-label"
-              >
-                {{ hour.label }}
-              </div>
-            </div>
-
-            <!-- Grid with day labels and cells -->
-            <div class="grid-container">
-              <!-- Day labels column -->
-              <div class="day-labels">
-                <div class="day-label">Mon</div>
-                <div class="day-label">Tue</div>
-                <div class="day-label">Wed</div>
-                <div class="day-label">Thu</div>
-                <div class="day-label">Fri</div>
-                <div class="day-label">Sat</div>
-                <div class="day-label">Sun</div>
-              </div>
-
-              <!-- Grid of days -->
-              <div class="grid-wrapper">
+        <div class="activity-grid-section">
+          <div class="activity-grid-container">
+            <div
+              v-if="activityGridDataHourly.hours.length > 0"
+              class="activity-grid"
+            >
+              <!-- Hour labels -->
+              <div class="month-labels">
+                <div class="day-label-spacer"></div>
                 <div
-                  v-for="(hour, hourIndex) in activityGridDataHourly.hours"
-                  :key="'hour-' + hourIndex"
-                  class="month-column"
+                  v-for="(hour, index) in activityGridDataHourly.hours"
+                  :key="'hour-' + index"
+                  class="month-label"
                 >
+                  {{ hour.label }}
+                </div>
+              </div>
+
+              <!-- Grid with day labels and cells -->
+              <div class="grid-container">
+                <!-- Day labels column -->
+                <div class="day-labels">
+                  <div class="day-label">Mon</div>
+                  <div class="day-label">Tue</div>
+                  <div class="day-label">Wed</div>
+                  <div class="day-label">Thu</div>
+                  <div class="day-label">Fri</div>
+                  <div class="day-label">Sat</div>
+                  <div class="day-label">Sun</div>
+                </div>
+
+                <!-- Grid of days -->
+                <div class="grid-wrapper">
                   <div
-                    v-for="(day, dayIndex) in hour.days"
-                    :key="'day-' + dayIndex"
-                    class="day-cell"
-                    :class="[
-                      day.level,
-                      {
-                        selected:
-                          selectedActivityCell &&
-                          selectedActivityCell.isHourly &&
-                          selectedActivityCell.hourIndex === hourIndex &&
-                          selectedActivityCell.dayIndex === dayIndex,
-                      },
-                    ]"
-                    :title="day.tooltip"
-                    @click="
-                      selectActivityCellHourly(
-                        $event,
-                        hourIndex,
-                        dayIndex,
-                        day,
-                        hour.label
-                      )
-                    "
-                  ></div>
+                    v-for="(hour, hourIndex) in activityGridDataHourly.hours"
+                    :key="'hour-' + hourIndex"
+                    class="month-column"
+                  >
+                    <div
+                      v-for="(day, dayIndex) in hour.days"
+                      :key="'day-' + dayIndex"
+                      class="day-cell"
+                      :class="[
+                        day.level,
+                        {
+                          selected:
+                            selectedActivityCell &&
+                            selectedActivityCell.isHourly &&
+                            selectedActivityCell.hourIndex === hourIndex &&
+                            selectedActivityCell.dayIndex === dayIndex,
+                        },
+                      ]"
+                      :title="day.tooltip"
+                      @click="
+                        selectActivityCellHourly(
+                          $event,
+                          hourIndex,
+                          dayIndex,
+                          day,
+                          hour.label
+                        )
+                      "
+                    ></div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div v-else class="no-data">
-            No flight data available for the selected time-frame
+            <div v-else class="no-data">
+              No flight data available for the selected time-frame
+            </div>
           </div>
         </div>
       </div>
@@ -755,7 +761,7 @@
             :key="'grid-' + i"
             x1="80"
             :y1="60 + (i - 1) * 70"
-            x2="780"
+            x2="760"
             :y2="60 + (i - 1) * 70"
             stroke="#e9ecef"
             stroke-width="1"
@@ -766,7 +772,7 @@
           <line
             x1="80"
             y1="270"
-            x2="780"
+            x2="760"
             y2="270"
             stroke="#dee2e6"
             stroke-width="1"
@@ -788,7 +794,7 @@
           <text
             v-for="(label, i) in distanceTimeChartData.xLabels"
             :key="'x-label-' + i"
-            :x="80 + i * (700 / (distanceTimeChartData.xLabels.length - 1))"
+            :x="80 + i * (680 / (distanceTimeChartData.xLabels.length - 1))"
             y="300"
             text-anchor="middle"
             class="chart-x-label"
@@ -1094,11 +1100,11 @@ export default {
       }
     },
     longestFlightTime() {
-      if (this.flights.length === 0) return "--";
+      if (this.filteredFlights.length === 0) return "--";
 
       let maxMinutes = 0;
 
-      this.flights.forEach((flight) => {
+      this.filteredFlights.forEach((flight) => {
         if (flight.flightTime) {
           const [hours, minutes] = flight.flightTime.split(":").map(Number);
           const totalMinutes = hours * 60 + minutes;
@@ -1120,11 +1126,11 @@ export default {
       }
     },
     yearWithMostFlights() {
-      if (this.flights.length === 0) return "--";
+      if (this.filteredFlights.length === 0) return "--";
 
       const yearCounts = {};
 
-      this.flights.forEach((flight) => {
+      this.filteredFlights.forEach((flight) => {
         if (flight.date) {
           const year = new Date(flight.date).getFullYear();
           if (!isNaN(year)) {
@@ -1148,11 +1154,11 @@ export default {
       return maxYear || "--";
     },
     daysSinceLastFlight() {
-      if (this.flights.length === 0) return "--";
+      if (this.filteredFlights.length === 0) return "--";
 
       let latestDate = null;
 
-      this.flights.forEach((flight) => {
+      this.filteredFlights.forEach((flight) => {
         if (flight.date) {
           const flightDate = new Date(flight.date);
           if (!latestDate || flightDate > latestDate) {
@@ -1170,11 +1176,11 @@ export default {
       return diffDays;
     },
     longestFlightDistance() {
-      if (this.flights.length === 0) return "--";
+      if (this.filteredFlights.length === 0) return "--";
 
       let maxDistance = 0;
 
-      this.flights.forEach((flight) => {
+      this.filteredFlights.forEach((flight) => {
         if (flight.trackDistance && flight.trackDistance > maxDistance) {
           maxDistance = flight.trackDistance;
         }
@@ -1185,12 +1191,12 @@ export default {
       return `${maxDistance.toFixed(2)} km`;
     },
     totalDistanceFlown() {
-      if (this.flights.length === 0) return "--";
+      if (this.filteredFlights.length === 0) return "--";
 
       let totalDistance = 0;
       let hasDistance = false;
 
-      this.flights.forEach((flight) => {
+      this.filteredFlights.forEach((flight) => {
         if (flight.trackDistance) {
           totalDistance += flight.trackDistance;
           hasDistance = true;
@@ -1202,11 +1208,11 @@ export default {
       return `${totalDistance.toFixed(2)} km`;
     },
     highestAltitude() {
-      if (this.flights.length === 0) return "--";
+      if (this.filteredFlights.length === 0) return "--";
 
       let maxAlt = 0;
 
-      this.flights.forEach((flight) => {
+      this.filteredFlights.forEach((flight) => {
         if (flight.maxAltitude && flight.maxAltitude > maxAlt) {
           maxAlt = flight.maxAltitude;
         }
@@ -1712,7 +1718,7 @@ export default {
       }
 
       // Chart dimensions
-      const chartWidth = 700;
+      const chartWidth = 680;
       const chartHeight = 210; // 270 - 60
       const xStart = 80;
       const yStart = 270;
@@ -1848,9 +1854,9 @@ export default {
       }
 
       // Chart dimensions (Y-axis on left)
-      const chartWidth = 720;
+      const chartWidth = 700;
       const chartHeight = 225;
-      const xStart = 60;
+      const xStart = 80;
       const yStart = 285;
 
       // Calculate points
@@ -2757,6 +2763,7 @@ export default {
   padding: 2rem;
   background-color: white;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .statistics-container h1 {
@@ -3522,9 +3529,12 @@ h3 {
 /* Activity Grid (GitHub-style) */
 .activity-grid-card {
   position: relative;
-  padding: 1.5rem 0;
+  padding: 1rem 0;
   margin-bottom: 0;
   overflow: visible;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .activity-grid-card h3 {
@@ -3533,8 +3543,9 @@ h3 {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   text-align: left;
+  padding: 0 1rem;
 }
 
 .activity-grids-wrapper {
@@ -3542,33 +3553,60 @@ h3 {
   flex-direction: column;
   gap: 2rem;
   width: 100%;
+  max-width: 100%;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.activity-grid-section {
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.grid-section-title {
+  color: #868e96;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 0.75rem 0;
+  padding: 0 1rem;
+  text-align: left;
 }
 
 .activity-grid-container {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
-  overflow-y: visible;
-  padding: 1rem 0;
+  overflow-y: hidden;
+  padding: 0.5rem 1rem;
+  display: block;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
 }
 
 .activity-grid {
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
-  width: 100%;
-  justify-content: center;
+  width: max-content;
+  min-width: 100%;
 }
 
 .month-labels {
   display: flex;
   gap: 4px;
-  margin-bottom: 10px;
-  font-size: 12px;
+  margin-bottom: 6px;
+  font-size: 10px;
   color: #666;
   align-items: center;
+  padding-left: 0;
 }
 
 .day-label-spacer {
-  width: 40px;
+  width: 35px;
+  flex-shrink: 0;
 }
 
 .month-label {
@@ -3576,20 +3614,20 @@ h3 {
   text-align: center;
   font-weight: 600;
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 9px;
   overflow: visible;
 }
 
 .grid-container {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 .day-labels {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
+  gap: 3px;
+  font-size: 10px;
   color: #666;
   padding-top: 0;
 }
@@ -3604,14 +3642,13 @@ h3 {
 
 .grid-wrapper {
   display: flex;
-  gap: 4px;
-  flex-grow: 1;
+  gap: 3px;
 }
 
 .month-column {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .day-cell {
@@ -3861,11 +3898,13 @@ h3 {
 
 @media (max-width: 768px) {
   .statistics-container {
-    padding: 1rem 0;
+    padding: 1rem 0.75rem;
     overflow-x: hidden;
     background-color: white;
-    max-width: 100%;
-    width: 100%;
+    max-width: none;
+    width: calc(100% + 1.5rem);
+    margin: 0 -0.75rem;
+    min-height: 100vh;
   }
 
   .statistics-container h1 {
@@ -4059,31 +4098,74 @@ h3 {
 
   /* Activity Grid (Flight Timing) - Mobile optimization */
   .activity-grid-card {
-    padding: 1rem;
+    padding: 1rem 0;
+    overflow: visible;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .activity-grid-card h3 {
+    padding: 0 1rem;
+    margin-bottom: 1rem;
   }
 
   .activity-grids-wrapper {
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 2rem;
+    overflow: visible;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .activity-grid-section {
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+    margin-bottom: 1rem;
+  }
+
+  .grid-section-title {
+    padding: 0 1rem;
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
   }
 
   .activity-grid-container {
-    padding: 0.5rem 0;
+    padding: 0;
+    margin: 0;
     overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100vw;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .activity-grid {
+    display: inline-flex;
+    flex-direction: column;
+    width: max-content;
+    padding: 0.5rem 1rem;
+    min-width: 0;
   }
 
   .day-cell {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
   }
 
   .month-label {
-    width: 14px;
+    width: 16px;
     font-size: 8px;
+    text-align: center;
   }
 
   .day-label {
     font-size: 9px;
+    height: 16px;
+    line-height: 16px;
+    width: 28px;
   }
 
   .grid-wrapper {
@@ -4096,25 +4178,21 @@ h3 {
 
   .month-labels {
     gap: 2px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
+    padding-left: 0;
   }
 
   .day-label-spacer {
     width: 28px;
+    flex-shrink: 0;
   }
 
   .grid-container {
-    gap: 4px;
+    gap: 2px;
   }
 
   .day-labels {
     gap: 2px;
-  }
-
-  .day-label {
-    height: 14px;
-    line-height: 14px;
-    width: 24px;
   }
 
   /* Activity popup - fix positioning on mobile */

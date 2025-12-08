@@ -264,7 +264,7 @@
 <script>
 import { ref, onMounted, onActivated, computed } from "vue";
 import { useRouter } from "vue-router";
-import { gearOperations, getAllMaintenance } from "../database/database.js";
+import { gearOperations, getAllMaintenance, flightOperations } from "../database/database.js";
 import { formatDate } from "../utils/dateUtils.js";
 
 export default {
@@ -309,12 +309,7 @@ export default {
 
     const loadAllFlights = async () => {
       try {
-        const timestamp = new Date().getTime();
-        const response = await fetch(
-          `http://localhost:3001/api/flights?_t=${timestamp}`
-        );
-        const data = await response.json();
-        allFlights.value = data.data || [];
+        allFlights.value = await flightOperations.getAllFlights();
       } catch (error) {
         console.error("Error loading flights:", error);
         allFlights.value = [];
