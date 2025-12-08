@@ -321,7 +321,7 @@
             :cx="point.x"
             :cy="point.y"
             r="5"
-            fill="white"
+            fill="#549f74"
             stroke="#549f74"
             stroke-width="2"
             class="data-point"
@@ -466,7 +466,7 @@
             :cx="point.x"
             :cy="point.y"
             r="5"
-            fill="white"
+            fill="#549f74"
             stroke="#549f74"
             stroke-width="2"
             class="data-point"
@@ -663,83 +663,61 @@
     </div>
 
     <!-- Flight Durations Histogram -->
-    <div class="card flight-duration-chart-card">
-      <h3>Flight Time Statistics</h3>
-      <div class="flight-duration-chart-container">
-        <svg class="flight-duration-chart" viewBox="0 0 800 400">
-          <!-- Y-axis grid lines -->
+    <div class="card flight-time-chart-card line-chart-section">
+      <div class="chart-header">
+        <div class="chart-title-group">
+          <h3>Flight Time Statistics</h3>
+          <span class="chart-subtitle">(Histogram of flight duration, 15 minute intervals)</span>
+        </div>
+      </div>
+      <div class="flight-time-chart-container">
+        <svg class="flight-time-chart area-line-chart" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
+          <!-- Horizontal grid lines (subtle) -->
           <line
-            v-for="i in 5"
+            v-for="i in 4"
             :key="'grid-' + i"
-            :x1="70"
-            :y1="50 + (i - 1) * 70"
-            :x2="750"
-            :y2="50 + (i - 1) * 70"
-            stroke="#e0e0e0"
+            x1="60"
+            :y1="60 + (i - 1) * 75"
+            x2="780"
+            :y2="60 + (i - 1) * 75"
+            stroke="#e9ecef"
+            stroke-width="1"
+            stroke-dasharray="4,4"
+          />
+          
+          <!-- Bottom axis line -->
+          <line
+            x1="60"
+            y1="285"
+            x2="780"
+            y2="285"
+            stroke="#dee2e6"
             stroke-width="1"
           />
 
-          <!-- X-axis -->
-          <line
-            x1="70"
-            y1="330"
-            x2="750"
-            y2="330"
-            stroke="#333"
-            stroke-width="2"
-          />
-
-          <!-- Y-axis -->
-          <line
-            x1="70"
-            y1="50"
-            x2="70"
-            y2="330"
-            stroke="#333"
-            stroke-width="2"
-          />
-
-          <!-- Y-axis labels -->
+          <!-- Y-axis labels (left side) -->
           <text
             v-for="(label, i) in flightDurationHistogramData.yLabels"
             :key="'y-label-' + i"
-            x="60"
-            :y="330 - i * 70"
+            x="55"
+            :y="290 - i * 75"
             text-anchor="end"
-            class="axis-label"
+            class="chart-y-label"
           >
             {{ label }}
           </text>
 
-          <!-- X-axis subticks (every 15 min) -->
-          <line
-            v-for="(bar, i) in flightDurationHistogramData.bars"
-            :key="'subtick-' + i"
-            :x1="bar.x"
-            y1="330"
-            :x2="bar.x"
-            y2="335"
-            stroke="#999"
-            stroke-width="1"
-          />
-
-          <!-- X-axis major tick marks and labels (every hour) -->
-          <g
+          <!-- X-axis labels (every hour) -->
+          <text
             v-for="(xLabel, i) in flightDurationHistogramData.xLabels"
-            :key="'x-tick-' + i"
+            :key="'x-label-' + i"
+            :x="xLabel.x"
+            y="310"
+            text-anchor="middle"
+            class="chart-x-label"
           >
-            <line
-              :x1="xLabel.x"
-              y1="330"
-              :x2="xLabel.x"
-              y2="340"
-              stroke="#333"
-              stroke-width="1"
-            />
-            <text :x="xLabel.x" y="355" text-anchor="middle" class="axis-label">
-              {{ xLabel.label }}
-            </text>
-          </g>
+            {{ xLabel.label }}
+          </text>
 
           <!-- Histogram bars -->
           <rect
@@ -754,22 +732,6 @@
           >
             <title>{{ bar.tooltip }}</title>
           </rect>
-
-          <!-- Y-axis title -->
-          <text
-            x="20"
-            y="190"
-            text-anchor="middle"
-            transform="rotate(-90, 20, 190)"
-            class="axis-title"
-          >
-            Number of Flights
-          </text>
-
-          <!-- X-axis title -->
-          <text x="400" y="385" text-anchor="middle" class="axis-title">
-            Flight Time
-          </text>
         </svg>
         <div
           v-if="flightDurationHistogramData.bars.length === 0"
@@ -781,50 +743,43 @@
     </div>
 
     <!-- Distance / Time Scatter Plot -->
-    <div class="card flight-time-chart-card">
-      <h3>Distance / Time</h3>
+    <div class="card flight-time-chart-card line-chart-section">
+      <div class="chart-header">
+        <h3>Distance / Time</h3>
+      </div>
       <div class="flight-time-chart-container">
-        <svg class="flight-time-chart" viewBox="0 0 800 400">
-          <!-- Y-axis grid lines -->
+        <svg class="flight-time-chart area-line-chart" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
+          <!-- Horizontal grid lines (subtle) -->
           <line
-            v-for="i in 5"
+            v-for="i in 4"
             :key="'grid-' + i"
-            :x1="70"
-            :y1="50 + (i - 1) * 70"
-            :x2="750"
-            :y2="50 + (i - 1) * 70"
-            stroke="#e0e0e0"
+            x1="80"
+            :y1="60 + (i - 1) * 70"
+            x2="780"
+            :y2="60 + (i - 1) * 70"
+            stroke="#e9ecef"
+            stroke-width="1"
+            stroke-dasharray="4,4"
+          />
+          
+          <!-- Bottom axis line -->
+          <line
+            x1="80"
+            y1="270"
+            x2="780"
+            y2="270"
+            stroke="#dee2e6"
             stroke-width="1"
           />
 
-          <!-- X-axis -->
-          <line
-            x1="70"
-            y1="330"
-            x2="750"
-            y2="330"
-            stroke="#333"
-            stroke-width="2"
-          />
-
-          <!-- Y-axis -->
-          <line
-            x1="70"
-            y1="50"
-            x2="70"
-            y2="330"
-            stroke="#333"
-            stroke-width="2"
-          />
-
-          <!-- Y-axis labels -->
+          <!-- Y-axis labels (left side) -->
           <text
             v-for="(label, i) in distanceTimeChartData.yLabels"
             :key="'y-label-' + i"
-            x="60"
-            :y="330 - i * 70"
+            x="75"
+            :y="275 - i * 70"
             text-anchor="end"
-            class="axis-label"
+            class="chart-y-label"
           >
             {{ label }}
           </text>
@@ -833,10 +788,10 @@
           <text
             v-for="(label, i) in distanceTimeChartData.xLabels"
             :key="'x-label-' + i"
-            :x="70 + i * (680 / (distanceTimeChartData.xLabels.length - 1))"
-            y="350"
+            :x="80 + i * (700 / (distanceTimeChartData.xLabels.length - 1))"
+            y="300"
             text-anchor="middle"
-            class="axis-label x-axis-label"
+            class="chart-x-label"
           >
             {{ label }}
           </text>
@@ -859,29 +814,15 @@
             :key="'point-' + i"
             :cx="point.x"
             :cy="point.y"
-            r="5"
+            r="6"
             fill="#549f74"
+            stroke="#fff"
+            stroke-width="2"
             class="data-point"
             @click="openFlightModal(point.flight)"
           >
             <title>{{ point.tooltip }}</title>
           </circle>
-
-          <!-- Y-axis title -->
-          <text
-            x="20"
-            y="190"
-            text-anchor="middle"
-            transform="rotate(-90, 20, 190)"
-            class="axis-title"
-          >
-            Flight Track Distance (km)
-          </text>
-
-          <!-- X-axis title -->
-          <text x="400" y="380" text-anchor="middle" class="axis-title">
-            Flight Duration (hours)
-          </text>
         </svg>
         <div v-if="distanceTimeChartData.points.length === 0" class="no-data">
           No flight data available for the selected filters
@@ -1575,11 +1516,21 @@ export default {
         }
       };
 
-      // Create Y-axis labels (4 labels) with quarter-hour increments
+      // Create Y-axis labels (4 labels) with unique integer values
       const yLabels = [];
+      const labelStep = adjustedYMax / 3;
       for (let i = 0; i <= 3; i++) {
-        const value = (adjustedYMax / 3) * i;
-        yLabels.push(Math.round(value * 10) / 10);
+        const value = labelStep * i;
+        // Use ceiling for all except 0 to ensure unique values
+        const label = i === 0 ? 0 : Math.ceil(value);
+        // Only add if different from previous label
+        if (yLabels.length === 0 || label !== yLabels[yLabels.length - 1]) {
+          yLabels.push(label);
+        }
+      }
+      // Ensure we have at least 2 labels
+      if (yLabels.length < 2) {
+        yLabels.push(Math.ceil(adjustedYMax));
       }
 
       // Chart dimensions (Y-axis on left)
@@ -1657,8 +1608,8 @@ export default {
         const year = flightData[0].date.getFullYear();
         const daysInYear = new Date(year, 1, 29).getMonth() === 1 ? 366 : 365;
 
-        // Add all 12 months of the selected year
-        for (let m = 0; m < 12; m++) {
+        // Show every other month for better readability (JAN, MAR, MAY, JUL, SEP, NOV)
+        for (let m = 0; m < 12; m += 2) {
           const firstOfMonth = new Date(year, m, 1);
           const dayOfYear =
             Math.floor(
@@ -1672,7 +1623,7 @@ export default {
       // X-axis labels (for all-time view) - month abbreviations with years below
       let xYearLabels = [];
       if (!isSingleYear && flightData.length > 0) {
-        const numTicks = 8; // Fewer ticks for better readability
+        const numTicks = 5; // Fewer ticks for better readability with larger labels
         const tickInterval = totalDays / numTicks;
 
         for (let i = 0; i <= numTicks; i++) {
@@ -1746,25 +1697,25 @@ export default {
       const xMax = Math.ceil(maxHours * 1.1); // Add 10% padding
       const yMax = Math.ceil(maxDistance * 1.1); // Add 10% padding
 
-      // Create Y-axis labels (distance in km)
+      // Create Y-axis labels (distance in km) - 4 labels matching other charts
       const yLabels = [];
-      for (let i = 0; i <= 4; i++) {
-        const value = (yMax / 4) * i;
-        yLabels.push(value.toFixed(0) + " km");
+      for (let i = 0; i <= 3; i++) {
+        const value = (yMax / 3) * i;
+        yLabels.push(value.toFixed(0) + "km");
       }
 
       // Create X-axis labels (time in hours)
       const xLabels = [];
       for (let i = 0; i <= 4; i++) {
         const value = (xMax / 4) * i;
-        xLabels.push(value.toFixed(1) + "h");
+        xLabels.push(value.toFixed(1) + "H");
       }
 
       // Chart dimensions
-      const chartWidth = 680;
-      const chartHeight = 280;
-      const xStart = 70;
-      const yStart = 330;
+      const chartWidth = 700;
+      const chartHeight = 210; // 270 - 60
+      const xStart = 80;
+      const yStart = 270;
 
       // Calculate points
       const points = scatterData.map((data) => {
@@ -1798,10 +1749,10 @@ export default {
       });
       const slope = sumXX > 0 ? sumXY / sumXX : 0;
 
-      // Calculate regression line endpoints
+      // Calculate regression line endpoints using updated dimensions
       // Line goes through origin (0,0) and extends to the chart bounds
       const regressionStartX = xStart;
-      const regressionStartY = yStart; // y=0 in chart coordinates
+      const regressionStartY = yStart; // y=0 in chart coordinates (285)
       const regressionEndX = xStart + chartWidth;
       const regressionEndY = yStart - ((slope * xMax) / yMax) * chartHeight;
 
@@ -1962,8 +1913,8 @@ export default {
         const year = parseInt(this.selectedYear);
         const daysInYear = new Date(year, 1, 29).getMonth() === 1 ? 366 : 365;
 
-        // Add all 12 months of the selected year
-        for (let m = 0; m < 12; m++) {
+        // Show every other month for better readability (JAN, MAR, MAY, JUL, SEP, NOV)
+        for (let m = 0; m < 12; m += 2) {
           const firstOfMonth = new Date(year, m, 1);
           const dayOfYear =
             Math.floor(
@@ -1977,27 +1928,32 @@ export default {
       // X-axis labels (for all-time view) - month abbreviations with years below
       let xYearLabels = [];
       if (!isSingleYear && flightData.length > 0) {
-        const numTicks = 8; // Fewer ticks for better readability
-        const tickInterval = totalDays / numTicks;
+        // Special case: single point - just show that point's month/year centered
+        if (flightData.length === 1 || totalDays <= 1) {
+          const singleDate = flightData[0].date;
+          xYearLabels.push({
+            x: xStart + chartWidth / 2,
+            monthLabel: monthAbbr[singleDate.getMonth()],
+            yearLabel: singleDate.getFullYear().toString(),
+          });
+        } else {
+          const numTicks = 5; // Fewer ticks for better readability with larger labels
+          const tickInterval = totalDays / numTicks;
 
-        for (let i = 0; i <= numTicks; i++) {
-          const daysFromStart = i * tickInterval;
-          const tickDate = new Date(
-            startDate.getTime() + daysFromStart * 24 * 60 * 60 * 1000
-          );
-          let x;
-          if (totalDays <= 1) {
-            x = xStart + (i / numTicks) * chartWidth;
-          } else {
-            x = xStart + (daysFromStart / (totalDays - 1)) * chartWidth;
+          for (let i = 0; i <= numTicks; i++) {
+            const daysFromStart = i * tickInterval;
+            const tickDate = new Date(
+              startDate.getTime() + daysFromStart * 24 * 60 * 60 * 1000
+            );
+            const x = xStart + (daysFromStart / (totalDays - 1)) * chartWidth;
+
+            // Month abbreviation (3-letter uppercase)
+            const monthLabel = monthAbbr[tickDate.getMonth()];
+            // Year (full 4 digits)
+            const yearLabel = tickDate.getFullYear().toString();
+
+            xYearLabels.push({ x, monthLabel, yearLabel });
           }
-
-          // Month abbreviation (3-letter uppercase)
-          const monthLabel = monthAbbr[tickDate.getMonth()];
-          // Year (full 4 digits)
-          const yearLabel = tickDate.getFullYear().toString();
-
-          xYearLabels.push({ x, monthLabel, yearLabel });
         }
       }
 
@@ -2479,13 +2435,12 @@ export default {
       // Round up to nearest 5 for better Y-axis labels
       const yMax = Math.ceil(maxCount / 5) * 5;
 
-      // Chart dimensions
-      const xStart = 70;
-      const xEnd = 750;
+      // Chart dimensions (matching FLIGHT DURATION OVER TIME)
+      const xStart = 60;
+      const xEnd = 780;
       const chartWidth = xEnd - xStart;
-      const chartHeight = 280;
-      const yStart = 330;
-      const yEnd = 50;
+      const chartHeight = 225; // 285 - 60
+      const yStart = 285;
 
       // Bar width
       const barWidth = chartWidth / numBins;
@@ -2524,22 +2479,22 @@ export default {
         };
       });
 
-      // Create Y-axis labels (5 labels: 0 to yMax)
+      // Create Y-axis labels (4 labels: 0 to yMax, matching other charts)
       const yLabels = [];
-      const yStep = yMax / 4;
-      for (let i = 0; i <= 4; i++) {
+      const yStep = yMax / 3;
+      for (let i = 0; i <= 3; i++) {
         yLabels.push(Math.round(yStep * i));
       }
 
-      // Create X-axis labels (every hour: 0h, 1h, 2h, ..., 10h)
+      // Create X-axis labels (every 2 hours for better spacing: 0h, 2h, 4h, ..., 10h)
       const xLabels = [];
-      for (let hour = 0; hour <= 10; hour++) {
+      for (let hour = 0; hour <= 10; hour += 2) {
         const minutes = hour * 60;
         const binIndex = minutes / binSize;
         const x = xStart + binIndex * barWidth;
         xLabels.push({
           x: x,
-          label: `${hour}h`,
+          label: `${hour}H`,
         });
       }
 
@@ -3127,16 +3082,16 @@ h3 {
 }
 
 .filters-panel {
-  position: absolute;
-  bottom: 5rem;
-  right: 0;
+  position: fixed;
+  bottom: 6rem;
+  right: 2rem;
   width: 400px;
-  max-width: 90vw;
+  max-width: calc(100vw - 4rem);
   background: white;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   padding: 1.5rem;
-  max-height: 70vh;
+  max-height: calc(100vh - 8rem);
   overflow-y: auto;
 }
 
@@ -3234,8 +3189,29 @@ h3 {
 .histogram-card .chart-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.histogram-card .toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.histogram-card .toggle-switch-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  width: auto;
+}
+
+.histogram-card .toggle-label {
+  order: 1;
+  white-space: nowrap;
 }
 
 .histogram-card .chart-subheader {
@@ -3340,6 +3316,18 @@ h3 {
   text-align: left;
 }
 
+.chart-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.chart-subtitle {
+  font-size: 0.75rem;
+  color: #868e96;
+  font-weight: 400;
+}
+
 /* Flight Duration Chart */
 .flight-duration-chart-card {
   padding: 1.5rem 0;
@@ -3379,9 +3367,10 @@ h3 {
 .toggle-group {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
   align-items: flex-end;
   width: auto;
+  flex-shrink: 0;
 }
 
 .toggle-switch-container {
@@ -3457,36 +3446,37 @@ h3 {
 }
 
 .axis-label {
-  font-size: 12px;
-  fill: #666;
+  font-size: 20px;
+  fill: #495057;
+  font-weight: 600;
 }
 
 .x-axis-label {
-  font-size: 11px;
+  font-size: 18px;
 }
 
 .axis-title {
-  font-size: 14px;
-  fill: #333;
+  font-size: 18px;
+  fill: #495057;
   font-weight: 600;
 }
 
 /* Chart labels */
 .chart-y-label {
-  font-size: 14px;
+  font-size: 24px;
   fill: #495057;
   font-weight: 600;
 }
 
 .chart-x-label {
-  font-size: 13px;
+  font-size: 22px;
   fill: #495057;
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .chart-x-label-year {
-  font-size: 11px;
+  font-size: 20px;
   fill: #868e96;
   font-weight: 500;
 }
@@ -3549,22 +3539,23 @@ h3 {
 
 .activity-grids-wrapper {
   display: flex;
-  gap: 1.5rem;
+  flex-direction: column;
+  gap: 2rem;
   width: 100%;
 }
 
 .activity-grid-container {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   overflow-x: auto;
   overflow-y: visible;
   padding: 1rem 0;
 }
 
 .activity-grid {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
-  min-width: 100%;
+  width: 100%;
+  justify-content: center;
 }
 
 .month-labels {
@@ -3870,17 +3861,21 @@ h3 {
 
 @media (max-width: 768px) {
   .statistics-container {
-    padding: 1rem;
+    padding: 1rem 0;
     overflow-x: hidden;
     background-color: white;
+    max-width: 100%;
+    width: 100%;
   }
 
-  h1 {
+  .statistics-container h1 {
     font-size: 1.5rem;
+    padding: 0 1rem;
   }
 
   h2 {
     font-size: 1.25rem;
+    padding: 0 1rem;
   }
 
   /* Cards are already full-width with no styling */
@@ -3888,12 +3883,13 @@ h3 {
     margin-left: 0;
     margin-right: 0;
     border-radius: 0;
-    padding: 1rem 0;
+    padding: 1rem;
   }
 
   .key-stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
+    padding: 0 1rem;
   }
 
   .key-stat-card {
@@ -3930,19 +3926,24 @@ h3 {
 
   .filters-panel {
     width: calc(100vw - 2rem);
-    bottom: 4.5rem;
-    right: -1rem;
-    left: 1rem;
+    bottom: 5rem;
+    right: 1rem;
+    left: auto;
   }
 
   /* Histogram section full width */
   .histogram-section {
     margin-left: 0;
     margin-right: 0;
+    padding: 0 1rem;
   }
 
   .histogram-card {
     padding: 1rem 0;
+  }
+
+  .top-locations-card {
+    padding: 1.5rem 1rem;
   }
 
   /* Flight Duration/Distance Charts - Mobile optimization */
@@ -3989,15 +3990,15 @@ h3 {
 
   /* Simplify axis labels on mobile */
   .flight-time-chart .axis-label {
-    font-size: 10px;
+    font-size: 14px;
   }
 
   .flight-time-chart .axis-title {
-    font-size: 10px;
+    font-size: 14px;
   }
 
   .flight-time-chart .x-axis-label {
-    font-size: 9px;
+    font-size: 13px;
   }
 
   /* Make data points larger and more tappable */
@@ -4021,6 +4022,14 @@ h3 {
     min-height: 220px;
   }
 
+  .flight-duration-chart .axis-label {
+    font-size: 14px;
+  }
+
+  .flight-duration-chart .axis-title {
+    font-size: 14px;
+  }
+
   /* Histogram card (Glider Usage) - Mobile optimization */
   .histogram-card .chart-header {
     flex-direction: column;
@@ -4030,15 +4039,13 @@ h3 {
 
   .histogram-card .toggle-group {
     width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
+    flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 8px;
   }
 
   .histogram-card .toggle-switch-container {
-    flex: 1;
-    min-width: 140px;
+    width: auto;
   }
 
   .histogram {
@@ -4052,7 +4059,7 @@ h3 {
 
   /* Activity Grid (Flight Timing) - Mobile optimization */
   .activity-grid-card {
-    padding: 1rem 0;
+    padding: 1rem;
   }
 
   .activity-grids-wrapper {
