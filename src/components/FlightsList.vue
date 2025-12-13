@@ -33,7 +33,7 @@
               <td class="flight-date">{{ formatDate(flight.date) }}</td>
               <td class="flight-time">{{ flight.flightTime }}</td>
               <td class="flight-takeoff">
-                {{ flight.takeoffLocation }}<span v-if="flight.takeoffCountryCode">, {{ flight.takeoffCountryCode }}</span>
+                <span class="takeoff-text">{{ flight.takeoffLocation }}<span v-if="flight.takeoffCountryCode">, {{ flight.takeoffCountryCode }}</span></span>
               </td>
             </tr>
           </tbody>
@@ -306,13 +306,11 @@ export default {
 }
 
 .table-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
 }
 
 .flights-table {
   width: 100%;
-  min-width: 320px;
   border-collapse: collapse;
 }
 
@@ -350,6 +348,14 @@ export default {
 
 .flight-takeoff {
   font-size: 0.9rem;
+  max-width: 0;
+}
+
+.takeoff-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .flight-row {
