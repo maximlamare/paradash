@@ -221,15 +221,15 @@
         </div>
       </div>
       <div class="flight-time-chart-container">
-        <svg class="flight-time-chart area-line-chart" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
+        <svg class="flight-time-chart area-line-chart" viewBox="0 0 800 320" preserveAspectRatio="xMidYMid meet">
           <!-- Horizontal grid lines (subtle) -->
           <line
             v-for="i in 4"
             :key="'grid-' + i"
             x1="60"
-            :y1="60 + (i - 1) * 75"
-            x2="780"
-            :y2="60 + (i - 1) * 75"
+            :y1="10 + (i - 1) * 70"
+            x2="760"
+            :y2="10 + (i - 1) * 70"
             stroke="#e9ecef"
             stroke-width="1"
             stroke-dasharray="4,4"
@@ -238,9 +238,9 @@
           <!-- Bottom axis line -->
           <line
             x1="60"
-            y1="285"
-            x2="780"
-            y2="285"
+            y1="220"
+            x2="760"
+            y2="220"
             stroke="#dee2e6"
             stroke-width="1"
           />
@@ -250,7 +250,7 @@
             v-for="(label, i) in flightTimeChartData.yLabels"
             :key="'y-label-' + i"
             x="55"
-            :y="290 - i * 75"
+            :y="225 - i * 70"
             text-anchor="end"
             class="chart-y-label"
           >
@@ -264,7 +264,7 @@
               v-for="(month, i) in flightTimeChartData.xMonthLabels"
               :key="'month-label-' + i"
               :x="month.x"
-              y="310"
+              y="245"
               text-anchor="middle"
               class="chart-x-label"
             >
@@ -277,7 +277,7 @@
               v-for="(yearLabel, i) in flightTimeChartData.xYearLabels"
               :key="'month-label-' + i"
               :x="yearLabel.x"
-              y="310"
+              y="245"
               text-anchor="middle"
               class="chart-x-label"
             >
@@ -288,7 +288,7 @@
               v-for="(yearLabel, i) in flightTimeChartData.xYearLabels"
               :key="'year-label-' + i"
               :x="yearLabel.x"
-              y="330"
+              y="265"
               text-anchor="middle"
               class="chart-x-label-year"
             >
@@ -334,7 +334,7 @@
           <text
             v-if="selectedYear !== 'all'"
             x="370"
-            y="355"
+            y="295"
             text-anchor="middle"
             class="chart-year-label"
           >
@@ -366,15 +366,15 @@
         <div v-if="flightDistanceChartData.points.length === 0" class="no-data-message">
           No flight data available for the selected filters
         </div>
-        <svg v-else class="flight-time-chart area-line-chart" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
+        <svg v-else class="flight-time-chart area-line-chart" viewBox="0 0 800 320" preserveAspectRatio="xMidYMid meet">
           <!-- Horizontal grid lines (subtle) -->
           <line
             v-for="i in 4"
             :key="'grid-' + i"
             x1="80"
-            :y1="60 + (i - 1) * 75"
-            x2="780"
-            :y2="60 + (i - 1) * 75"
+            :y1="10 + (i - 1) * 70"
+            x2="760"
+            :y2="10 + (i - 1) * 70"
             stroke="#e9ecef"
             stroke-width="1"
             stroke-dasharray="4,4"
@@ -383,9 +383,9 @@
           <!-- Bottom axis line -->
           <line
             x1="80"
-            y1="285"
-            x2="780"
-            y2="285"
+            y1="220"
+            x2="760"
+            y2="220"
             stroke="#dee2e6"
             stroke-width="1"
           />
@@ -395,7 +395,7 @@
             v-for="(label, i) in flightDistanceChartData.yLabels"
             :key="'y-label-' + i"
             x="75"
-            :y="290 - i * 75"
+            :y="225 - i * 70"
             text-anchor="end"
             class="chart-y-label"
           >
@@ -409,7 +409,7 @@
               v-for="(month, i) in flightDistanceChartData.xMonthLabels"
               :key="'month-label-' + i"
               :x="month.x"
-              y="310"
+              y="245"
               text-anchor="middle"
               class="chart-x-label"
             >
@@ -422,7 +422,7 @@
               v-for="(yearLabel, i) in flightDistanceChartData.xYearLabels"
               :key="'month-label-' + i"
               :x="yearLabel.x"
-              y="310"
+              y="245"
               text-anchor="middle"
               class="chart-x-label"
             >
@@ -433,7 +433,7 @@
               v-for="(yearLabel, i) in flightDistanceChartData.xYearLabels"
               :key="'year-label-' + i"
               :x="yearLabel.x"
-              y="330"
+              y="265"
               text-anchor="middle"
               class="chart-x-label-year"
             >
@@ -479,7 +479,7 @@
           <text
             v-if="selectedYear !== 'all'"
             x="420"
-            y="355"
+            y="295"
             text-anchor="middle"
             class="chart-year-label"
           >
@@ -1507,45 +1507,48 @@ export default {
       // Recalculate yMax to ensure it's exactly 4 steps
       const adjustedYMax = step * 4;
 
-      // Helper function to format time in quarter-hour increments
-      const formatTime = (hours) => {
-        const totalMinutes = Math.round(hours * 60);
-        const h = Math.floor(totalMinutes / 60);
-        const m = totalMinutes % 60;
-
-        if (h === 0) {
-          return m === 0 ? "0h" : `${m}m`;
-        } else if (m === 0) {
-          return `${h}h`;
-        } else {
-          return `${h}h${m}`;
-        }
-      };
-
-      // Create Y-axis labels (4 labels) with unique integer values
+      // Create Y-axis labels - always 4 labels showing full hours only
+      // Ensure minimum of 3h scale so we get nice 0, 1, 2, 3 labels
+      let niceMax;
+      if (adjustedYMax <= 3) {
+        niceMax = 3;  // Minimum scale: 0h, 1h, 2h, 3h
+      } else if (adjustedYMax <= 6) {
+        niceMax = 6;  // 0h, 2h, 4h, 6h
+      } else if (adjustedYMax <= 9) {
+        niceMax = 9;  // 0h, 3h, 6h, 9h
+      } else if (adjustedYMax <= 12) {
+        niceMax = 12; // 0h, 4h, 8h, 12h
+      } else if (adjustedYMax <= 15) {
+        niceMax = 15; // 0h, 5h, 10h, 15h
+      } else if (adjustedYMax <= 24) {
+        niceMax = 24; // 0h, 8h, 16h, 24h
+      } else if (adjustedYMax <= 30) {
+        niceMax = 30; // 0h, 10h, 20h, 30h
+      } else if (adjustedYMax <= 60) {
+        niceMax = Math.ceil(adjustedYMax / 15) * 15; // Round to nearest 15
+      } else if (adjustedYMax <= 120) {
+        niceMax = Math.ceil(adjustedYMax / 30) * 30; // Round to nearest 30
+      } else {
+        niceMax = Math.ceil(adjustedYMax / 50) * 50; // Round to nearest 50
+      }
+      
+      // Generate 4 evenly spaced labels (full hours only)
       const yLabels = [];
-      const labelStep = adjustedYMax / 3;
       for (let i = 0; i <= 3; i++) {
-        const value = labelStep * i;
-        // Use ceiling for all except 0 to ensure unique values
-        const label = i === 0 ? 0 : Math.ceil(value);
-        // Only add if different from previous label
-        if (yLabels.length === 0 || label !== yLabels[yLabels.length - 1]) {
-          yLabels.push(label);
-        }
+        const value = Math.round((niceMax / 3) * i);
+        yLabels.push(value);  // Just the number, template adds "h"
       }
-      // Ensure we have at least 2 labels
-      if (yLabels.length < 2) {
-        yLabels.push(Math.ceil(adjustedYMax));
-      }
+      
+      // Use niceMax for scaling instead of adjustedYMax for consistent positioning
+      const effectiveYMax = niceMax;
 
-      // Chart dimensions (Y-axis on left)
+      // Chart dimensions (Y-axis on left) - minimal top padding, proper right margin
       const xStart = 60;
-      const xEnd = 780;
+      const xEnd = 760;  // Reduced from 780 to leave right margin for labels
       const chartWidth = xEnd - xStart;
-      const chartHeight = 225;
-      const yStart = 285;
-      const yEnd = 60;
+      const chartHeight = 210;  // 220 - 10 = 210
+      const yStart = 220;  // Bottom of chart area
+      const yEnd = 10;     // Top of chart area
 
       // Calculate points
       const isSingleYear = this.selectedYear !== "all";
@@ -1583,7 +1586,7 @@ export default {
             );
             x = xStart + (daysSinceStart / (totalDays - 1)) * chartWidth;
           }
-          const y = yStart - (data.hours / adjustedYMax) * chartHeight;
+          const y = yStart - (data.hours / effectiveYMax) * chartHeight;
 
           // Format date label as dd.mm.yyyy
           const day = String(data.date.getDate()).padStart(2, "0");
@@ -1657,7 +1660,7 @@ export default {
       const pathPoints = points.map((p) => `${p.x},${p.y}`).join(" ");
 
       // Create area points for polygon fill
-      const baseY = 285; // Bottom of chart area
+      const baseY = yStart; // Bottom of chart area
       let areaPoints = "";
       if (points.length > 0) {
         const firstPoint = points[0];
@@ -1853,11 +1856,11 @@ export default {
         yLabels.push(Math.round(value));
       }
 
-      // Chart dimensions (Y-axis on left)
-      const chartWidth = 700;
-      const chartHeight = 225;
+      // Chart dimensions (Y-axis on left) - with proper right margin
+      const chartWidth = 680;  // 760 - 80 = 680 (leaving 40px right margin)
+      const chartHeight = 210;  // Reduced height
       const xStart = 80;
-      const yStart = 285;
+      const yStart = 220;  // Updated for minimal top padding
 
       // Calculate points
       const isSingleYear = this.selectedYear !== "all";
@@ -1968,7 +1971,7 @@ export default {
 
       // Create area points for polygon fill
       // Start from bottom-left, go through all points, end at bottom-right
-      const baseY = 285; // Bottom of chart area (adjusted for new viewBox)
+      const baseY = yStart; // Bottom of chart area
       let areaPoints = "";
       if (points.length > 0) {
         const firstPoint = points[0];
@@ -2492,15 +2495,15 @@ export default {
         yLabels.push(Math.round(yStep * i));
       }
 
-      // Create X-axis labels (every 2 hours for better spacing: 0h, 2h, 4h, ..., 10h)
+      // Create X-axis labels (every hour: 0h, 1h, 2h, ..., 10h)
       const xLabels = [];
-      for (let hour = 0; hour <= 10; hour += 2) {
+      for (let hour = 0; hour <= 10; hour++) {
         const minutes = hour * 60;
         const binIndex = minutes / binSize;
         const x = xStart + binIndex * barWidth;
         xLabels.push({
           x: x,
-          label: `${hour}H`,
+          label: `${hour}h`,
         });
       }
 
@@ -3246,10 +3249,11 @@ h3 {
 
 .histogram {
   display: flex;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  align-items: stretch;
   justify-content: center;
   gap: 1rem;
-  min-height: 300px;
+  min-height: 200px;
   padding: 0 1rem;
 }
 
@@ -3257,20 +3261,27 @@ h3 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex: 1;
-  min-width: 40px;
-  max-width: 80px;
+  width: calc(33.333% - 1rem);
+  min-width: 80px;
+  max-width: 120px;
 }
 
 .histogram-bar-container {
   width: 100%;
-  height: 250px;
+  height: 150px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
   position: relative;
-  gap: 4px;
+  flex-shrink: 0;
+}
+
+.histogram-bar-wrapper .histogram-label {
+  flex-grow: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
 }
 
 .histogram-bar {
@@ -3288,16 +3299,19 @@ h3 {
 .bar-count {
   color: #333;
   font-weight: bold;
-  font-size: 0.9rem;
-  margin-bottom: 2px;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+  min-height: 1.2em;
 }
 
 .histogram-label {
   margin-top: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #666;
   font-weight: 500;
   text-align: center;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 /* Flight Time Chart */
@@ -3310,7 +3324,7 @@ h3 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0;
 }
 
 .flight-time-chart-card h3 {
@@ -3579,24 +3593,22 @@ h3 {
 .activity-grid-container {
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
   padding: 0.5rem 1rem;
   display: block;
-  -webkit-overflow-scrolling: touch;
   box-sizing: border-box;
 }
 
 .activity-grid {
   display: inline-flex;
   flex-direction: column;
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  max-width: 100%;
 }
 
 .month-labels {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   margin-bottom: 6px;
   font-size: 10px;
   color: #666;
@@ -3611,16 +3623,18 @@ h3 {
 
 .month-label {
   width: 24px;
+  min-width: 12px;
   text-align: center;
   font-weight: 600;
-  flex-shrink: 0;
+  flex-shrink: 1;
   font-size: 9px;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .grid-container {
   display: flex;
   gap: 4px;
+  width: 100%;
 }
 
 .day-labels {
@@ -3642,18 +3656,24 @@ h3 {
 
 .grid-wrapper {
   display: flex;
-  gap: 3px;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 
 .month-column {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 
 .day-cell {
   width: 24px;
+  min-width: 10px;
   height: 24px;
+  flex-shrink: 1;
   border-radius: 3px;
   cursor: pointer;
   transition: all 0.1s ease;
@@ -4093,7 +4113,12 @@ h3 {
   }
 
   .histogram-bar-container {
-    height: 180px;
+    height: 120px;
+  }
+
+  .histogram-bar-wrapper {
+    width: calc(33.333% - 0.75rem);
+    min-width: 70px;
   }
 
   /* Activity Grid (Flight Timing) - Mobile optimization */
