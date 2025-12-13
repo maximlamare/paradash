@@ -9,6 +9,21 @@ import { Capacitor } from '@capacitor/core';
 const DB_NAME = 'paradash';
 const DB_VERSION = 1;
 
+// Backup configuration constants
+export const BACKUP_CONFIG = {
+  VERSION: '1.0',
+  SUPPORTED_VERSIONS: ['1.0'],
+  FILES: {
+    DATABASE: 'database.json',
+    SETTINGS: 'settings.json',
+  },
+  FOLDERS: {
+    IGC: 'igc/',
+    ATTACHMENTS: 'attachments/',
+  },
+  TABLES: ['gear', 'flights', 'gear_maintenance'], // Whitelisted tables in dependency order
+};
+
 // SQLite connection instance
 let sqlite = null;
 let db = null;
@@ -113,18 +128,18 @@ export async function initializeDatabase() {
     await db.execute(CREATE_MAINTENANCE_TABLE);
 
     // Run migrations for existing databases
-    try {
-      // Add serial_number and notes columns if they don't exist
+    // Check if columns exist before trying to add them
+    const tableInfo = await db.query("PRAGMA table_info(gear)");
+    const existingColumns = (tableInfo.values || []).map(col => col.name);
+    
+    if (!existingColumns.includes('serial_number')) {
       await db.execute('ALTER TABLE gear ADD COLUMN serial_number TEXT');
-    } catch (e) {
-      // Column already exists, ignore
     }
     
-    try {
+    if (!existingColumns.includes('notes')) {
       await db.execute('ALTER TABLE gear ADD COLUMN notes TEXT');
-    } catch (e) {
-      // Column already exists, ignore
     }
+    
     isInitialized = true;
 
     return db;
@@ -498,7 +513,7 @@ export const nativeMaintenanceOperations = {
   },
 };
 
-// Wipe all data from the database
+// Wipe all data from the database (legacy method - use recreateDatabase for imports)
 export async function wipeAllData() {
   try {
     await initializeDatabase();
@@ -520,28 +535,246 @@ export async function wipeAllData() {
   }
 }
 
-// Import database from JSON export
-export async function importFromJson(jsonString) {
+// Recreate database tables from scratch (DROP + CREATE)
+// This is the preferred method for imports - guarantees clean slate
+export async function recreateDatabase() {
   try {
     await initializeDatabase();
     
-    const importData = JSON.parse(jsonString);
+    // Disable foreign keys during recreation
+    await db.execute('PRAGMA foreign_keys = OFF');
     
-    // Close the current connection before importing
-    await db.close();
+    // Drop tables in reverse dependency order (maintenance -> flights -> gear)
+    await db.execute('DROP TABLE IF EXISTS gear_maintenance');
+    await db.execute('DROP TABLE IF EXISTS flights');
+    await db.execute('DROP TABLE IF EXISTS gear');
     
-    // Use the SQLite import function on the connection object
-    const result = await sqlite.importFromJson(jsonString);
+    // Recreate with current schema (ensures any migrations are preserved)
+    await db.execute(CREATE_GEAR_TABLE);
+    await db.execute(CREATE_FLIGHTS_TABLE);
+    await db.execute(CREATE_MAINTENANCE_TABLE);
     
-    // Reopen the database
-    db = await sqlite.retrieveConnection(DB_NAME, false);
-    await db.open();
+    // Re-enable foreign keys
+    await db.execute('PRAGMA foreign_keys = ON');
     
+    console.log('Database tables recreated successfully');
     return { success: true };
   } catch (error) {
-    console.error('Error importing database:', error);
+    console.error('Error recreating database:', error);
+    // Try to re-enable foreign keys even on error
+    try {
+      await db.execute('PRAGMA foreign_keys = ON');
+    } catch (fkError) {
+      console.error('Failed to re-enable foreign keys:', fkError);
+    }
     throw error;
   }
+}
+
+// Validate backup data structure before import
+export function validateBackupData(jsonString) {
+  const errors = [];
+  
+  try {
+    const data = JSON.parse(jsonString);
+    
+    // Check basic structure
+    if (!data || typeof data !== 'object') {
+      errors.push('Invalid backup format: not a valid JSON object');
+      return { valid: false, errors, data: null };
+    }
+    
+    // Check for tables array
+    if (!Array.isArray(data.tables)) {
+      errors.push('Invalid backup format: missing tables array');
+      return { valid: false, errors, data: null };
+    }
+    
+    // Check required tables exist
+    const tableNames = data.tables.map(t => t.name);
+    for (const requiredTable of BACKUP_CONFIG.TABLES) {
+      if (!tableNames.includes(requiredTable)) {
+        errors.push(`Missing required table: ${requiredTable}`);
+      }
+    }
+    
+    // Validate each table has proper structure
+    for (const table of data.tables) {
+      if (!table.name || typeof table.name !== 'string') {
+        errors.push('Invalid table: missing or invalid name');
+        continue;
+      }
+      
+      // Check table is in whitelist
+      if (!BACKUP_CONFIG.TABLES.includes(table.name)) {
+        console.warn(`Skipping unknown table: ${table.name}`);
+        continue;
+      }
+      
+      if (!Array.isArray(table.values)) {
+        errors.push(`Table ${table.name}: missing values array`);
+      }
+      
+      if (!Array.isArray(table.schema)) {
+        errors.push(`Table ${table.name}: missing schema definition`);
+      }
+    }
+    
+    return { 
+      valid: errors.length === 0, 
+      errors, 
+      data,
+      stats: {
+        tables: tableNames.length,
+        gear: data.tables.find(t => t.name === 'gear')?.values?.length || 0,
+        flights: data.tables.find(t => t.name === 'flights')?.values?.length || 0,
+        maintenance: data.tables.find(t => t.name === 'gear_maintenance')?.values?.length || 0,
+      }
+    };
+    
+  } catch (parseError) {
+    errors.push(`Failed to parse backup JSON: ${parseError.message}`);
+    return { valid: false, errors, data: null };
+  }
+}
+
+// Import database from JSON export (uses DROP + CREATE for clean slate)
+export async function importFromJson(jsonString, progressCallback = null) {
+  // Step 1: Validate before any destructive operations
+  const validation = validateBackupData(jsonString);
+  if (!validation.valid) {
+    throw new Error(`Invalid backup: ${validation.errors.join('; ')}`);
+  }
+  
+  const importData = validation.data;
+  console.log('Backup validated successfully:', validation.stats);
+  
+  if (progressCallback) progressCallback({ phase: 'validated', percent: 10 });
+  
+  try {
+    await initializeDatabase();
+    
+    // Step 2: Disable foreign keys first
+    await db.execute('PRAGMA foreign_keys = OFF');
+    
+    // Step 3: Recreate tables (DROP + CREATE) for clean slate
+    if (progressCallback) progressCallback({ phase: 'recreating', percent: 20 });
+    
+    // Drop tables in reverse dependency order
+    await db.execute('DROP TABLE IF EXISTS gear_maintenance');
+    await db.execute('DROP TABLE IF EXISTS flights');
+    await db.execute('DROP TABLE IF EXISTS gear');
+    
+    // Recreate with current schema
+    await db.execute(CREATE_GEAR_TABLE);
+    await db.execute(CREATE_FLIGHTS_TABLE);
+    await db.execute(CREATE_MAINTENANCE_TABLE);
+    
+    console.log('Database tables recreated successfully');
+    
+    if (progressCallback) progressCallback({ phase: 'importing', percent: 30 });
+    
+    const importStats = { inserted: {}, errors: {} };
+    
+    // Import tables in dependency order (gear -> flights -> maintenance)
+    for (let i = 0; i < BACKUP_CONFIG.TABLES.length; i++) {
+      const tableName = BACKUP_CONFIG.TABLES[i];
+      const table = importData.tables.find(t => t.name === tableName);
+      
+      if (!table || !table.values?.length) {
+        console.log(`Skipping empty table: ${tableName}`);
+        importStats.inserted[tableName] = 0;
+        importStats.errors[tableName] = 0;
+        continue;
+      }
+      
+      // Get current schema columns (app's schema, not backup's)
+      const tableInfo = await db.query(`PRAGMA table_info(${tableName})`);
+      const currentColumns = (tableInfo.values || []).map(col => col.name);
+      
+      // Get backup schema columns
+      const backupColumns = table.schema?.map(s => s.column) || [];
+      
+      console.log(`Importing ${table.values.length} rows into ${tableName}`);
+      console.log(`  Current schema: ${currentColumns.join(', ')}`);
+      console.log(`  Backup schema: ${backupColumns.join(', ')}`);
+      
+      let insertedCount = 0;
+      let errorCount = 0;
+      
+      for (const row of table.values) {
+        try {
+          // Map backup columns to current schema
+          // This handles schema differences gracefully
+          const values = currentColumns.map(col => {
+            const backupIdx = backupColumns.indexOf(col);
+            if (backupIdx >= 0 && backupIdx < row.length) {
+              const val = row[backupIdx];
+              return val === undefined ? null : val;
+            }
+            return null; // Column doesn't exist in backup, use null
+          });
+          
+          const placeholders = currentColumns.map(() => '?').join(', ');
+          const query = `INSERT INTO ${tableName} (${currentColumns.join(', ')}) VALUES (${placeholders})`;
+          
+          await db.run(query, values);
+          insertedCount++;
+        } catch (rowError) {
+          errorCount++;
+          console.warn(`Error inserting row into ${tableName}:`, rowError.message);
+        }
+      }
+      
+      importStats.inserted[tableName] = insertedCount;
+      importStats.errors[tableName] = errorCount;
+      
+      console.log(`  Completed: ${insertedCount} inserted, ${errorCount} errors`);
+      
+      // Update progress
+      if (progressCallback) {
+        const progress = 30 + ((i + 1) / BACKUP_CONFIG.TABLES.length) * 50;
+        progressCallback({ phase: 'importing', table: tableName, percent: Math.round(progress) });
+      }
+    }
+    
+    // Re-enable foreign keys
+    await db.execute('PRAGMA foreign_keys = ON');
+    
+    if (progressCallback) progressCallback({ phase: 'verifying', percent: 90 });
+    
+    // Verify import
+    const verifyStats = await getTableCounts();
+    console.log('Import verification:', verifyStats);
+    
+    if (progressCallback) progressCallback({ phase: 'complete', percent: 100 });
+    
+    return { 
+      success: true, 
+      stats: importStats,
+      verified: verifyStats
+    };
+    
+  } catch (error) {
+    console.error('Error importing database:', error);
+    // Try to re-enable foreign keys on error
+    try {
+      await db.execute('PRAGMA foreign_keys = ON');
+    } catch (fkError) {
+      console.warn('Failed to re-enable foreign keys:', fkError);
+    }
+    throw error;
+  }
+}
+
+// Get count of records in each table
+async function getTableCounts() {
+  const counts = {};
+  for (const table of BACKUP_CONFIG.TABLES) {
+    const result = await db.query(`SELECT COUNT(*) as count FROM ${table}`);
+    counts[table] = result.values?.[0]?.count || 0;
+  }
+  return counts;
 }
 
 // Check if running on native platform
@@ -555,7 +788,10 @@ export default {
   closeDatabase,
   isNativePlatform,
   wipeAllData,
+  recreateDatabase,
   importFromJson,
+  validateBackupData,
+  BACKUP_CONFIG,
   flightOperations: nativeFlightOperations,
   gearOperations: nativeGearOperations,
   maintenanceOperations: nativeMaintenanceOperations,

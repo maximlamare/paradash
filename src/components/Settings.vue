@@ -277,6 +277,20 @@
               </button>
             </div>
           </div>
+
+          <!-- Import Progress Bar -->
+          <div v-if="importProgress" class="import-progress">
+            <div class="progress-bar-container">
+              <div 
+                class="progress-bar-fill" 
+                :style="{ width: importProgress.percent + '%' }"
+              ></div>
+            </div>
+            <div class="progress-details">
+              <span class="progress-phase">{{ importProgress.details }}</span>
+              <span class="progress-percent">{{ importProgress.percent }}%</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -330,7 +344,11 @@ import {
   getAllMaintenance,
   wipeAllData,
 } from "../database/database.js";
-import { importFromJson } from "../database/capacitorDatabase.js";
+import { 
+  importFromJson, 
+  validateBackupData, 
+  BACKUP_CONFIG 
+} from "../database/capacitorDatabase.js";
 import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 
@@ -364,6 +382,8 @@ export default {
       selectedBackupFile: null,
       showAdvancedOptions: false,
       isWiping: false,
+      importProgress: null, // { phase: string, percent: number, details?: string }
+      importFailedFiles: [], // Track files that failed to import
     };
   },
   mounted() {
@@ -694,148 +714,314 @@ export default {
       }
 
       this.isImporting = true;
-      this.showMessage('Starting import...', 'success');
+      this.importProgress = { phase: 'reading', percent: 0, details: 'Reading backup file...' };
+      this.importFailedFiles = [];
 
       try {
-        // Dynamically import JSZip
+        // Step 1: Read ZIP file
         const { default: JSZip } = await import('jszip');
+        this.updateImportProgress('reading', 5, 'Loading ZIP file...');
 
-        // Read the file
-        const fileReader = new FileReader();
-        
-        const zipData = await new Promise((resolve, reject) => {
-          fileReader.onload = (e) => resolve(e.target.result);
-          fileReader.onerror = (e) => reject(e);
-          fileReader.readAsArrayBuffer(this.selectedBackupFile);
-        });
-
-        // Load ZIP
+        const zipData = await this.readFileAsArrayBuffer(this.selectedBackupFile);
         const zip = await JSZip.loadAsync(zipData);
-
-        // Wipe existing data first
-        await wipeAllData();
-
-        // Import database
-        this.showMessage('Importing database...', 'success');
         
-        const dbFile = zip.file('database.json');
-        if (!dbFile) {
-          throw new Error('database.json not found in backup ZIP file');
-        }
+        // Step 2: Validate backup structure BEFORE any destructive operations
+        this.updateImportProgress('validating', 10, 'Validating backup...');
+        await this.validateBackupZip(zip);
         
+        // Step 3: Get database content and validate
+        this.updateImportProgress('validating', 15, 'Validating database...');
+        const dbFile = zip.file(BACKUP_CONFIG.FILES.DATABASE);
         const dbContent = await dbFile.async('string');
         
-        // Import using the database's import function
-        // The database.json is already in the correct format from exportToJson
-        try {
-          await importFromJson(dbContent);
-        } catch (dbError) {
-          console.error('Database import failed:', dbError);
-          throw new Error(`Database import failed: ${dbError.message}`);
+        const validation = validateBackupData(dbContent);
+        if (!validation.valid) {
+          throw new Error(`Invalid database backup: ${validation.errors.join('; ')}`);
         }
+        
+        console.log('Backup validation passed:', validation.stats);
 
-        // Import settings
-        const settingsFile = zip.file('settings.json');
-        if (settingsFile) {
-          const settingsContent = await settingsFile.async('string');
-          const settings = JSON.parse(settingsContent);
-          
-          // Restore settings to localStorage
-          if (settings.flightCategories) {
-            localStorage.setItem('flightCategories', JSON.stringify(settings.flightCategories));
-            this.flightCategories = settings.flightCategories;
-          }
-          if (settings.flightTypes) {
-            localStorage.setItem('flightTypes', JSON.stringify(settings.flightTypes));
-            this.flightTypes = settings.flightTypes;
-          }
-          if (settings.maintenanceCategories) {
-            localStorage.setItem('maintenanceCategories', JSON.stringify(settings.maintenanceCategories));
-            this.maintenanceCategories = settings.maintenanceCategories;
-          }
-          if (settings.gliderWarningDuration) {
-            localStorage.setItem('gliderWarningDuration', settings.gliderWarningDuration.toString());
-            this.gliderWarningDuration = settings.gliderWarningDuration;
-          }
-          if (settings.gliderWarningFlightTime) {
-            localStorage.setItem('gliderWarningFlightTime', settings.gliderWarningFlightTime.toString());
-            this.gliderWarningFlightTime = settings.gliderWarningFlightTime;
-          }
-          if (settings.rescueWarningDuration) {
-            localStorage.setItem('rescueWarningDuration', settings.rescueWarningDuration.toString());
-            this.rescueWarningDuration = settings.rescueWarningDuration;
-          }
-        }
+        // Step 4: Import database (handles DROP + CREATE internally)
+        this.updateImportProgress('database', 20, 'Importing database...');
+        
+        const dbResult = await importFromJson(dbContent, (progress) => {
+          const percent = 20 + (progress.percent * 0.4); // 20-60%
+          this.updateImportProgress('database', percent, `Importing ${progress.table || 'data'}...`);
+        });
+        
+        console.log('Database import result:', dbResult);
 
-        // Import IGC files
-        let igcCount = 0;
-        for (const filename in zip.files) {
-          if (filename.startsWith('igc/') && !zip.files[filename].dir) {
-            try {
-              const igcFile = zip.file(filename);
-              const igcContent = await igcFile.async('string');
-              const igcFilename = filename.replace('igc/', '');
-              
-              // Write IGC file to Documents
-              await Filesystem.writeFile({
-                path: `igc/${igcFilename}`,
-                data: igcContent,
-                directory: Directory.Documents,
-                encoding: Encoding.UTF8,
-                recursive: true,
-              });
-              igcCount++;
-            } catch (error) {
-              console.warn(`Could not import IGC file ${filename}:`, error);
-            }
-          }
-        }
+        // Step 5: Import settings with validation
+        this.updateImportProgress('settings', 65, 'Importing settings...');
+        await this.importSettingsFromZip(zip);
 
-        // Import attachments
-        let attachmentCount = 0;
-        for (const filename in zip.files) {
-          if (filename.startsWith('attachments/') && !zip.files[filename].dir) {
-            try {
-              const attachmentFile = zip.file(filename);
-              const attachmentContent = await attachmentFile.async('base64');
-              const attachmentFilename = filename.replace('attachments/', '');
-              
-              // Write attachment file to Documents
-              await Filesystem.writeFile({
-                path: `attachments/${attachmentFilename}`,
-                data: attachmentContent,
-                directory: Directory.Documents,
-                recursive: true,
-              });
-              attachmentCount++;
-            } catch (error) {
-              console.warn(`Could not import attachment ${filename}:`, error);
-            }
-          }
-        }
+        // Step 6: Import IGC files with tracking
+        this.updateImportProgress('files', 70, 'Importing IGC files...');
+        const igcResult = await this.importIGCFilesFromZip(zip);
+        
+        // Step 7: Import attachments with tracking
+        this.updateImportProgress('files', 85, 'Importing attachments...');
+        const attachmentResult = await this.importAttachmentsFromZip(zip);
 
-        // Reload data counts
+        // Step 8: Verify and report
+        this.updateImportProgress('verifying', 95, 'Verifying import...');
+        
+        const testFlights = await flightOperations.getAllFlights();
+        const testGear = await getAllGear();
+        
         await this.loadDataCounts();
 
         // Clear selected file
         this.selectedBackupFile = null;
-        this.$refs.backupFileInput.value = '';
+        if (this.$refs.backupFileInput) {
+          this.$refs.backupFileInput.value = '';
+        }
 
-        const successMsg = `Import successful! Restored ${igcCount} IGC files and PDF ${attachmentCount} attachments.`;
+        this.updateImportProgress('complete', 100, 'Import complete!');
+
+        // Build result message
+        const successMsg = this.buildImportResultMessage(
+          testFlights.length,
+          testGear.length,
+          igcResult.imported,
+          attachmentResult.imported,
+          this.importFailedFiles
+        );
+        
         this.showMessage(successMsg, "success");
         
-        // Show alert and suggest reload
-        alert(successMsg + '\n\nThe app will now reload to show the imported data.');
+        // Show detailed alert if there were failures
+        if (this.importFailedFiles.length > 0) {
+          alert(
+            successMsg + 
+            '\n\n⚠️ Some files failed to import:\n' + 
+            this.importFailedFiles.slice(0, 10).map(f => `• ${f}`).join('\n') +
+            (this.importFailedFiles.length > 10 ? `\n... and ${this.importFailedFiles.length - 10} more` : '') +
+            '\n\nThe app will now reload.'
+          );
+        } else {
+          alert(successMsg + '\n\nThe app will now reload to show the imported data.');
+        }
+        
         window.location.reload();
 
       } catch (error) {
         console.error("Error importing backup:", error);
-        const errorMsg = `Import failed: ${error.message}`;
+        const errorMsg = this.getHumanReadableError(error);
         this.showMessage(errorMsg, "error");
         alert(errorMsg);
       } finally {
         this.isImporting = false;
+        this.importProgress = null;
       }
+    },
+
+    // Helper: Read file as ArrayBuffer
+    readFileAsArrayBuffer(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('Failed to read backup file'));
+        reader.readAsArrayBuffer(file);
+      });
+    },
+
+    // Helper: Update import progress
+    updateImportProgress(phase, percent, details) {
+      this.importProgress = { phase, percent: Math.round(percent), details };
+      this.showMessage(details, 'success');
+    },
+
+    // Validate ZIP structure before import
+    async validateBackupZip(zip) {
+      const errors = [];
+      
+      // Check required database file
+      if (!zip.file(BACKUP_CONFIG.FILES.DATABASE)) {
+        errors.push(`Missing required file: ${BACKUP_CONFIG.FILES.DATABASE}`);
+      }
+      
+      if (errors.length > 0) {
+        throw new Error(`Invalid backup file: ${errors.join('; ')}`);
+      }
+    },
+
+    // Import settings with type validation and sanitization
+    async importSettingsFromZip(zip) {
+      const settingsFile = zip.file(BACKUP_CONFIG.FILES.SETTINGS);
+      if (!settingsFile) {
+        console.log('No settings file in backup, skipping settings import');
+        return;
+      }
+
+      try {
+        const content = await settingsFile.async('string');
+        const settings = JSON.parse(content);
+
+        // Validate and import flightCategories
+        if (this.isValidStringArray(settings.flightCategories)) {
+          const sanitized = this.sanitizeStringArray(settings.flightCategories, 50);
+          if (sanitized.length > 0) {
+            localStorage.setItem('flightCategories', JSON.stringify(sanitized));
+            this.flightCategories = sanitized;
+          }
+        }
+
+        // Validate and import flightTypes
+        if (this.isValidStringArray(settings.flightTypes)) {
+          const sanitized = this.sanitizeStringArray(settings.flightTypes, 50);
+          if (sanitized.length > 0) {
+            localStorage.setItem('flightTypes', JSON.stringify(sanitized));
+            this.flightTypes = sanitized;
+          }
+        }
+
+        // Validate and import maintenanceCategories
+        if (this.isValidStringArray(settings.maintenanceCategories)) {
+          const sanitized = this.sanitizeStringArray(settings.maintenanceCategories, 50);
+          if (sanitized.length > 0) {
+            localStorage.setItem('maintenanceCategories', JSON.stringify(sanitized));
+            this.maintenanceCategories = sanitized;
+          }
+        }
+
+        // Validate and import numeric settings
+        if (this.isValidPositiveNumber(settings.gliderWarningDuration, 1, 120)) {
+          localStorage.setItem('gliderWarningDuration', settings.gliderWarningDuration.toString());
+          this.gliderWarningDuration = settings.gliderWarningDuration;
+        }
+
+        if (this.isValidPositiveNumber(settings.gliderWarningFlightTime, 1, 1000)) {
+          localStorage.setItem('gliderWarningFlightTime', settings.gliderWarningFlightTime.toString());
+          this.gliderWarningFlightTime = settings.gliderWarningFlightTime;
+        }
+
+        if (this.isValidPositiveNumber(settings.rescueWarningDuration, 1, 120)) {
+          localStorage.setItem('rescueWarningDuration', settings.rescueWarningDuration.toString());
+          this.rescueWarningDuration = settings.rescueWarningDuration;
+        }
+
+        console.log('Settings imported successfully');
+      } catch (error) {
+        console.warn('Failed to import settings, using defaults:', error);
+        // Non-fatal error - continue with import
+      }
+    },
+
+    // Validation helpers
+    isValidStringArray(arr) {
+      return Array.isArray(arr) && arr.every(item => typeof item === 'string');
+    },
+
+    sanitizeStringArray(arr, maxLength) {
+      return arr
+        .filter(item => typeof item === 'string' && item.trim().length > 0)
+        .map(item => item.trim().substring(0, maxLength));
+    },
+
+    isValidPositiveNumber(value, min, max) {
+      return typeof value === 'number' && 
+             !isNaN(value) && 
+             value >= min && 
+             value <= max;
+    },
+
+    // Import IGC files with tracking
+    async importIGCFilesFromZip(zip) {
+      let imported = 0;
+      const igcFolder = BACKUP_CONFIG.FOLDERS.IGC;
+
+      for (const filename in zip.files) {
+        if (filename.startsWith(igcFolder) && !zip.files[filename].dir) {
+          const igcFilename = filename.replace(igcFolder, '');
+          if (!igcFilename) continue;
+
+          try {
+            const igcFile = zip.file(filename);
+            const igcContent = await igcFile.async('string');
+            
+            await Filesystem.writeFile({
+              path: `igc/${igcFilename}`,
+              data: igcContent,
+              directory: Directory.Documents,
+              encoding: Encoding.UTF8,
+              recursive: true,
+            });
+            imported++;
+          } catch (error) {
+            console.warn(`Failed to import IGC file ${igcFilename}:`, error);
+            this.importFailedFiles.push(`IGC: ${igcFilename}`);
+          }
+        }
+      }
+
+      console.log(`Imported ${imported} IGC files`);
+      return { imported, failed: this.importFailedFiles.filter(f => f.startsWith('IGC:')).length };
+    },
+
+    // Import attachments with tracking
+    async importAttachmentsFromZip(zip) {
+      let imported = 0;
+      const attachmentsFolder = BACKUP_CONFIG.FOLDERS.ATTACHMENTS;
+
+      for (const filename in zip.files) {
+        if (filename.startsWith(attachmentsFolder) && !zip.files[filename].dir) {
+          const attachmentFilename = filename.replace(attachmentsFolder, '');
+          if (!attachmentFilename) continue;
+
+          try {
+            const attachmentFile = zip.file(filename);
+            const attachmentContent = await attachmentFile.async('base64');
+            
+            // Write to attachments folder (matching database attachment_path structure)
+            await Filesystem.writeFile({
+              path: `attachments/${attachmentFilename}`,
+              data: attachmentContent,
+              directory: Directory.Documents,
+              recursive: true,
+            });
+            imported++;
+          } catch (error) {
+            console.warn(`Failed to import attachment ${attachmentFilename}:`, error);
+            this.importFailedFiles.push(`Attachment: ${attachmentFilename}`);
+          }
+        }
+      }
+
+      console.log(`Imported ${imported} attachments`);
+      return { imported, failed: this.importFailedFiles.filter(f => f.startsWith('Attachment:')).length };
+    },
+
+    // Build human-readable import result message
+    buildImportResultMessage(flights, gear, igcFiles, attachments, failedFiles) {
+      let msg = `Import successful! Restored ${flights} flights, ${gear} gear items`;
+      
+      if (igcFiles > 0 || attachments > 0) {
+        msg += `, ${igcFiles} IGC files, ${attachments} attachments`;
+      }
+      
+      if (failedFiles.length > 0) {
+        msg += `. Warning: ${failedFiles.length} file(s) failed to import.`;
+      }
+      
+      return msg;
+    },
+
+    // Convert error to user-friendly message
+    getHumanReadableError(error) {
+      const message = error.message || 'Unknown error';
+      
+      if (message.includes('database.json')) {
+        return 'Import failed: The backup file is missing the database. Please select a valid ParaDash backup.';
+      }
+      if (message.includes('Invalid backup')) {
+        return `Import failed: ${message}`;
+      }
+      if (message.includes('parse') || message.includes('JSON')) {
+        return 'Import failed: The backup file appears to be corrupted.';
+      }
+      
+      return `Import failed: ${message}`;
     },
 
     async wipeDatabase() {
@@ -1238,6 +1424,48 @@ export default {
 
 .file-input {
   display: none;
+}
+
+/* Import Progress Bar */
+.import-progress {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 12px;
+  background-color: #e9ecef;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #549f74, #6bc493);
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.progress-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.progress-phase {
+  color: #495057;
+  font-weight: 500;
+}
+
+.progress-percent {
+  color: #549f74;
+  font-weight: 600;
 }
 
 /* Danger Zone Styles */
