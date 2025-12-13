@@ -118,13 +118,19 @@
         <!-- Distance Card -->
         <div
           class="info-card"
-          v-if="flight.trackDistance || flight.straightDistance"
+          v-if="flight.trackDistance || flight.straightDistance || freeFlightDistance"
         >
           <h3>Distance</h3>
           <div class="info-row" v-if="flight.trackDistance">
             <span class="label">Track Distance:</span>
             <span class="value">{{
               formatDistance(flight.trackDistance)
+            }}</span>
+          </div>
+          <div class="info-row" v-if="freeFlightDistance">
+            <span class="label">Free Distance:</span>
+            <span class="value highlight">{{
+              formatDistance(freeFlightDistance)
             }}</span>
           </div>
           <div class="info-row" v-if="flight.straightDistance">
@@ -450,6 +456,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatLocationWithCountry as formatLocationWithCountryUtil } from "../utils/countryUtils.js";
 import { formatDateWithWeekday } from "../utils/dateUtils.js";
+import { calculateFreeFlightDistance } from "../utils/igcUtils.js";
 
 // Fix for default markers in Leaflet with webpack
 delete L.Icon.Default.prototype._getIconUrl;
@@ -500,6 +507,8 @@ export default {
       uploadingIgc: false,
       successMessage: "",
       errorMessage: "",
+      freeFlightDistance: null,
+      freeFlightTurnpoints: [],
     };
   },
   async mounted() {
@@ -587,6 +596,8 @@ export default {
         }
         this.trackData = null;
         this.trackError = "";
+        this.freeFlightDistance = null;
+        this.freeFlightTurnpoints = [];
 
         // Get all flights and find the one we need
         const flights = await flightOperations.getAllFlights();
@@ -730,6 +741,16 @@ export default {
             gliderSerial: flight.gliderSerial || "",
           },
         };
+
+        // Calculate free-flight distance
+        try {
+          const freeFlightResult = calculateFreeFlightDistance(igcContent);
+          this.freeFlightDistance = freeFlightResult.freeDistance;
+          this.freeFlightTurnpoints = freeFlightResult.turnpoints;
+        } catch (freeDistError) {
+          console.error("Error calculating free-flight distance:", freeDistError);
+          this.freeFlightDistance = null;
+        }
       } catch (error) {
         console.error("Error reading IGC file on native:", error);
         // File might not exist locally, show appropriate message
@@ -1301,6 +1322,11 @@ export default {
   font-family: "Courier New", monospace;
   font-weight: bold;
   color: #549f74;
+}
+
+.value.highlight {
+  color: #549f74;
+  font-weight: bold;
 }
 
 .category-badge {

@@ -2,6 +2,28 @@
   <div class="statistics-container">
     <h1>Statistics</h1>
 
+    <!-- Distance Type Toggle -->
+    <div class="distance-type-toggle">
+      <div class="toggle-switch">
+        <button
+          :class="['toggle-btn', { active: distanceType === 'track' }]"
+          @click="distanceType = 'track'"
+        >
+          Track Distance
+        </button>
+        <button
+          :class="['toggle-btn', { active: distanceType === 'free' }]"
+          @click="distanceType = 'free'"
+        >
+          Free Distance
+        </button>
+      </div>
+      <div v-if="distanceType === 'free'" class="distance-type-info">
+        <span class="info-icon">ℹ️</span>
+        <span class="info-text">Free distance: optimal 5-point route (start, 3 turnpoints, finish)</span>
+      </div>
+    </div>
+
     <!-- Key Statistics Cards -->
     <div class="key-stats-grid">
       <div class="key-stat-card card">
@@ -1017,6 +1039,8 @@
 <script>
 import { flightOperations, gearOperations } from "../database/database.js";
 import { formatDateShort } from "../utils/dateUtils.js";
+import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
+import { calculateFreeFlightDistance } from "../utils/igcUtils.js";
 
 export default {
   name: "Statistics",
@@ -1040,6 +1064,8 @@ export default {
       showRetiredWings: false, // Show retired wings in usage chart
       allGear: [], // All gear items for checking retired status
       selectedActivityCell: null, // Selected cell in activity grid
+      distanceType: "track", // 'track' or 'free' - controls which distance metric to display
+      freeDistanceCache: {}, // Cache for computed free distances by flight ID
     };
   },
   computed: {
@@ -1181,8 +1207,9 @@ export default {
       let maxDistance = 0;
 
       this.filteredFlights.forEach((flight) => {
-        if (flight.trackDistance && flight.trackDistance > maxDistance) {
-          maxDistance = flight.trackDistance;
+        const distance = this.getFlightDistance(flight);
+        if (distance && distance > maxDistance) {
+          maxDistance = distance;
         }
       });
 
@@ -1197,8 +1224,9 @@ export default {
       let hasDistance = false;
 
       this.filteredFlights.forEach((flight) => {
-        if (flight.trackDistance) {
-          totalDistance += flight.trackDistance;
+        const distance = this.getFlightDistance(flight);
+        if (distance) {
+          totalDistance += distance;
           hasDistance = true;
         }
       });
@@ -1680,7 +1708,7 @@ export default {
     distanceTimeChartData() {
       // Filter flights that have both distance and time data
       const validFlights = this.filteredFlights.filter(
-        (f) => f.trackDistance && f.flightTime
+        (f) => this.getFlightDistance(f) && f.flightTime
       );
 
       if (validFlights.length === 0) {
@@ -1693,7 +1721,7 @@ export default {
         const totalHours = hours + minutes / 60;
         return {
           hours: totalHours,
-          distance: flight.trackDistance,
+          distance: this.getFlightDistance(flight),
           displayTime: flight.flightTime,
           date: flight.date,
           flight: flight,
@@ -1790,7 +1818,7 @@ export default {
 
       // Sort flights by date and filter those with distance data
       const sortedFlights = [...this.filteredFlights]
-        .filter((f) => f.date && f.trackDistance)
+        .filter((f) => f.date && this.getFlightDistance(f))
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
       if (sortedFlights.length === 0) {
@@ -1807,6 +1835,7 @@ export default {
       const flightsByDate = {};
       sortedFlights.forEach((flight) => {
         const dateKey = flight.date;
+        const distance = this.getFlightDistance(flight);
         if (!flightsByDate[dateKey]) {
           flightsByDate[dateKey] = {
             date: new Date(flight.date),
@@ -1815,7 +1844,7 @@ export default {
             flights: [],
           };
         }
-        flightsByDate[dateKey].distance += flight.trackDistance;
+        flightsByDate[dateKey].distance += distance;
         flightsByDate[dateKey].flightCount++;
         flightsByDate[dateKey].flights.push(flight);
       });
@@ -2608,6 +2637,54 @@ export default {
         console.error("Error loading gear:", error);
       }
     },
+    /**
+     * Get the appropriate distance for a flight based on current distanceType setting
+     * @param {Object} flight - The flight object
+     * @returns {number|null} Distance in km or null if not available
+     */
+    getFlightDistance(flight) {
+      if (this.distanceType === 'track') {
+        return flight.trackDistance || null;
+      } else {
+        // For free distance, check cache first, then fall back to track distance
+        // Free distance needs to be calculated async, so we return cached value if available
+        if (this.freeDistanceCache[flight.id] !== undefined) {
+          return this.freeDistanceCache[flight.id];
+        }
+        // Fall back to track distance if free distance not yet calculated
+        return flight.trackDistance || null;
+      }
+    },
+    /**
+     * Calculate free distances for all flights with IGC files
+     * This runs asynchronously and populates the cache
+     */
+    async calculateFreeDistances() {
+      const flightsWithIgc = this.flights.filter(f => f.igcFilePath);
+      
+      for (const flight of flightsWithIgc) {
+        // Skip if already cached
+        if (this.freeDistanceCache[flight.id] !== undefined) {
+          continue;
+        }
+        
+        try {
+          const result = await Filesystem.readFile({
+            path: `igc/${flight.igcFilePath}`,
+            directory: Directory.Documents,
+            encoding: Encoding.UTF8,
+          });
+          
+          const igcContent = result.data;
+          const freeResult = calculateFreeFlightDistance(igcContent);
+          this.freeDistanceCache[flight.id] = freeResult.freeDistance;
+        } catch (error) {
+          // If we can't read/calculate, fall back to track distance
+          console.warn(`Could not calculate free distance for flight ${flight.id}:`, error.message);
+          this.freeDistanceCache[flight.id] = flight.trackDistance || null;
+        }
+      }
+    },
     extractYears() {
       const years = new Set();
       this.flights.forEach((flight) => {
@@ -2756,6 +2833,26 @@ export default {
     this.loadFlights();
     this.loadGear();
   },
+  watch: {
+    distanceType: {
+      handler(newVal) {
+        if (newVal === 'free') {
+          // Calculate free distances when switching to free distance mode
+          this.calculateFreeDistances();
+        }
+      },
+      immediate: false
+    },
+    flights: {
+      handler() {
+        // Recalculate free distances if we're in free distance mode and flights change
+        if (this.distanceType === 'free') {
+          this.calculateFreeDistances();
+        }
+      },
+      immediate: false
+    }
+  },
 };
 </script>
 
@@ -2771,8 +2868,65 @@ export default {
 
 .statistics-container h1 {
   color: #549f74;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
   text-align: center;
+}
+
+/* Distance Type Toggle */
+.distance-type-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.distance-type-toggle .toggle-switch {
+  display: flex;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.distance-type-toggle .toggle-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.distance-type-toggle .toggle-btn:hover {
+  color: #549f74;
+}
+
+.distance-type-toggle .toggle-btn.active {
+  background-color: #549f74;
+  color: white;
+  box-shadow: 0 2px 4px rgba(84, 159, 116, 0.3);
+}
+
+.distance-type-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.distance-type-info .info-icon {
+  font-size: 0.9rem;
+}
+
+.distance-type-info .info-text {
+  font-style: italic;
 }
 
 .year-dropdown {
