@@ -169,7 +169,7 @@
       </div>
 
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group location-autocomplete">
           <label for="startLocation">Start Location</label>
           <input
             type="text"
@@ -178,7 +178,22 @@
             required
             class="form-control"
             placeholder="Location name"
+            @input="onStartLocationInput"
+            @focus="showStartSuggestions = true"
+            @blur="hideStartSuggestionsDelayed"
+            autocomplete="off"
           />
+          <ul v-if="showStartSuggestions && filteredStartLocations.length > 0" class="location-suggestions">
+            <li
+              v-for="location in filteredStartLocations"
+              :key="location.name + '-' + location.countryCode"
+              @mousedown.prevent="selectStartLocation(location)"
+              class="suggestion-item"
+            >
+              <span class="suggestion-name">{{ location.name }}</span>
+              <span class="suggestion-country" v-if="location.countryCode">{{ location.countryCode }}</span>
+            </li>
+          </ul>
         </div>
 
         <div class="form-group">
@@ -216,7 +231,7 @@
       </div>
 
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group location-autocomplete">
           <label for="endLocation">End Location</label>
           <input
             type="text"
@@ -225,7 +240,22 @@
             required
             class="form-control"
             placeholder="Location name"
+            @input="onEndLocationInput"
+            @focus="showEndSuggestions = true"
+            @blur="hideEndSuggestionsDelayed"
+            autocomplete="off"
           />
+          <ul v-if="showEndSuggestions && filteredEndLocations.length > 0" class="location-suggestions">
+            <li
+              v-for="location in filteredEndLocations"
+              :key="location.name + '-' + location.countryCode"
+              @mousedown.prevent="selectEndLocation(location)"
+              class="suggestion-item"
+            >
+              <span class="suggestion-name">{{ location.name }}</span>
+              <span class="suggestion-country" v-if="location.countryCode">{{ location.countryCode }}</span>
+            </li>
+          </ul>
         </div>
 
         <div class="form-group">
@@ -659,12 +689,76 @@ export default {
     const isSubmitting = ref(false);
     const successMessage = ref("");
     const errorMessage = ref("");
+    
+    // Location autocomplete state
+    const showStartSuggestions = ref(false);
+    const showEndSuggestions = ref(false);
 
     // Computed property to filter only active gliders
     const gliders = computed(() => {
       return gear.value.filter(
         (item) => item.type === "gliders" && item.is_active
       );
+    });
+
+    // Computed property to get unique takeoff locations from existing flights
+    const uniqueTakeoffLocations = computed(() => {
+      const locationMap = new Map();
+      
+      existingFlights.value.forEach((f) => {
+        if (f.takeoffLocation) {
+          const key = `${f.takeoffLocation}-${f.takeoffCountryCode || ''}`;
+          if (!locationMap.has(key)) {
+            locationMap.set(key, {
+              name: f.takeoffLocation,
+              countryCode: f.takeoffCountryCode || '',
+            });
+          }
+        }
+      });
+      
+      return Array.from(locationMap.values()).sort((a, b) => 
+        a.name.localeCompare(b.name)
+      );
+    });
+
+    // Computed property to get unique landing locations from existing flights
+    const uniqueLandingLocations = computed(() => {
+      const locationMap = new Map();
+      
+      existingFlights.value.forEach((f) => {
+        if (f.landingLocation) {
+          const key = `${f.landingLocation}-${f.landingCountryCode || ''}`;
+          if (!locationMap.has(key)) {
+            locationMap.set(key, {
+              name: f.landingLocation,
+              countryCode: f.landingCountryCode || '',
+            });
+          }
+        }
+      });
+      
+      return Array.from(locationMap.values()).sort((a, b) => 
+        a.name.localeCompare(b.name)
+      );
+    });
+
+    // Filtered locations for start field (only takeoff locations)
+    const filteredStartLocations = computed(() => {
+      const search = flight.value.startLocation?.toLowerCase() || '';
+      if (!search) return uniqueTakeoffLocations.value.slice(0, 10);
+      return uniqueTakeoffLocations.value
+        .filter((loc) => loc.name.toLowerCase().includes(search))
+        .slice(0, 10);
+    });
+
+    // Filtered locations for end field (only landing locations)
+    const filteredEndLocations = computed(() => {
+      const search = flight.value.endLocation?.toLowerCase() || '';
+      if (!search) return uniqueLandingLocations.value.slice(0, 10);
+      return uniqueLandingLocations.value
+        .filter((loc) => loc.name.toLowerCase().includes(search))
+        .slice(0, 10);
     });
 
     // Load settings from localStorage
@@ -824,6 +918,43 @@ export default {
         });
     };
 
+    // Location autocomplete handlers
+    const onStartLocationInput = () => {
+      showStartSuggestions.value = true;
+    };
+
+    const onEndLocationInput = () => {
+      showEndSuggestions.value = true;
+    };
+
+    const selectStartLocation = (location) => {
+      flight.value.startLocation = location.name;
+      if (location.countryCode) {
+        flight.value.startCountry = location.countryCode;
+      }
+      showStartSuggestions.value = false;
+    };
+
+    const selectEndLocation = (location) => {
+      flight.value.endLocation = location.name;
+      if (location.countryCode) {
+        flight.value.endCountry = location.countryCode;
+      }
+      showEndSuggestions.value = false;
+    };
+
+    const hideStartSuggestionsDelayed = () => {
+      setTimeout(() => {
+        showStartSuggestions.value = false;
+      }, 150);
+    };
+
+    const hideEndSuggestionsDelayed = () => {
+      setTimeout(() => {
+        showEndSuggestions.value = false;
+      }, 150);
+    };
+
     // Reset the form
     const resetForm = () => {
       flight.value = {
@@ -910,6 +1041,17 @@ export default {
       handleFileSelect,
       uploadIGCFile,
       removeIGCFile,
+      // Location autocomplete
+      showStartSuggestions,
+      showEndSuggestions,
+      filteredStartLocations,
+      filteredEndLocations,
+      onStartLocationInput,
+      onEndLocationInput,
+      selectStartLocation,
+      selectEndLocation,
+      hideStartSuggestionsDelayed,
+      hideEndSuggestionsDelayed,
     };
   },
 };
@@ -1242,6 +1384,60 @@ export default {
     width: 100%;
     padding: 12px;
   }
+}
+
+/* Location Autocomplete Styles */
+.location-autocomplete {
+  position: relative;
+}
+
+.location-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.suggestion-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.15s ease;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover {
+  background-color: #e8f5f0;
+}
+
+.suggestion-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.suggestion-country {
+  font-size: 0.8rem;
+  color: #666;
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 </style>
