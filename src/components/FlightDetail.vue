@@ -1165,6 +1165,7 @@ export default {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  overflow-x: hidden;
 }
 
 .error {
@@ -1255,6 +1256,7 @@ export default {
   padding: 20px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   border: 1px solid #e9ecef;
+  overflow: hidden;
 }
 
 .info-card.full-width {
@@ -1291,6 +1293,8 @@ export default {
 .value {
   color: #333;
   font-weight: 500;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .duration {
@@ -1381,6 +1385,8 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .flight-link {
@@ -1390,6 +1396,8 @@ export default {
   background: #f8f9fa;
   border-radius: 6px;
   transition: background-color 0.2s;
+  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 .flight-link:hover {
@@ -1403,6 +1411,8 @@ export default {
   line-height: 1.6;
   color: #333;
   border-left: 4px solid #549f74;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .action-buttons {
