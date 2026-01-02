@@ -1,5 +1,6 @@
 <template>
   <div id="app">
+    <WelcomeTour />
     <header class="header">
       <button class="menu-btn" @click="toggleSidebar" aria-label="Toggle menu">
         <div class="hamburger">
@@ -64,10 +65,14 @@
 </template>
 
 <script>
-import { App } from '@capacitor/app';
+import { App } from "@capacitor/app";
+import WelcomeTour from "./components/WelcomeTour.vue";
 
 export default {
   name: "App",
+  components: {
+    WelcomeTour,
+  },
   data() {
     return {
       sidebarOpen: false,
@@ -94,7 +99,7 @@ export default {
     });
 
     // Handle hardware back button
-    App.addListener('backButton', ({ canGoBack }) => {
+    App.addListener("backButton", ({ canGoBack }) => {
       // Close sidebar if open
       if (this.sidebarOpen) {
         this.closeSidebar();
@@ -102,8 +107,8 @@ export default {
       }
 
       // Check if we're on the main page (FlightsList)
-      const isMainPage = this.$route.path === '/';
-      
+      const isMainPage = this.$route.path === "/";
+
       if (!isMainPage && canGoBack) {
         // Navigate back within the app
         this.$router.go(-1);

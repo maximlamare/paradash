@@ -20,6 +20,7 @@
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
     "leaflet.fullscreen": "^5.1.1",
+    "shepherd.js": "^14.5.1",
     "vue": "^3.4.0",
     "vue-router": "^4.2.0"
   },
