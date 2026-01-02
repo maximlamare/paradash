@@ -598,7 +598,7 @@ export default {
             try {
               const fileContent = await Filesystem.readFile({
                 path: `igc/${flight.igcFilePath}`,
-                directory: Directory.Documents,
+                directory: Directory.Data,
                 encoding: Encoding.UTF8,
               });
               igcFolder.file(flight.igcFilePath, fileContent.data);
@@ -609,21 +609,22 @@ export default {
           }
         }
 
-        // Add all attachment files
+        // Add all attachment files (maintenance PDFs)
         let attachmentCount = 0;
         const attachmentsFolder = zip.folder('attachments');
         for (const record of maintenance) {
           if (record.attachment_path && record.attachment_filename) {
             try {
+              // PDFs are stored in maintenance_pdfs/ folder
               const fileContent = await Filesystem.readFile({
-                path: record.attachment_path,
-                directory: Directory.Documents,
+                path: `maintenance_pdfs/${record.attachment_path}`,
+                directory: Directory.Data,
               });
-              // Use the original filename
-              attachmentsFolder.file(record.attachment_filename, fileContent.data, { base64: true });
+              // Store with the attachment_path as filename to preserve the mapping
+              attachmentsFolder.file(record.attachment_path, fileContent.data, { base64: true });
               attachmentCount++;
             } catch (error) {
-              console.warn(`Could not read attachment ${record.attachment_path}:`, error);
+              console.warn(`Could not read attachment maintenance_pdfs/${record.attachment_path}:`, error);
             }
           }
         }
@@ -931,6 +932,18 @@ export default {
       let imported = 0;
       const igcFolder = BACKUP_CONFIG.FOLDERS.IGC;
 
+      // Ensure the igc directory exists before writing any files
+      try {
+        await Filesystem.mkdir({
+          path: 'igc',
+          directory: Directory.Data,
+          recursive: true,
+        });
+      } catch (mkdirError) {
+        // Directory might already exist, ignore error
+        console.log('IGC directory check:', mkdirError.message);
+      }
+
       for (const filename in zip.files) {
         if (filename.startsWith(igcFolder) && !zip.files[filename].dir) {
           const igcFilename = filename.replace(igcFolder, '');
@@ -938,19 +951,29 @@ export default {
 
           try {
             const igcFile = zip.file(filename);
+            if (!igcFile) {
+              console.warn(`IGC file not found in zip: ${filename}`);
+              this.importFailedFiles.push(`IGC: ${igcFilename} (not found in zip)`);
+              continue;
+            }
+            
             const igcContent = await igcFile.async('string');
+            if (!igcContent || igcContent.length === 0) {
+              console.warn(`IGC file is empty: ${filename}`);
+              this.importFailedFiles.push(`IGC: ${igcFilename} (empty file)`);
+              continue;
+            }
             
             await Filesystem.writeFile({
               path: `igc/${igcFilename}`,
               data: igcContent,
-              directory: Directory.Documents,
+              directory: Directory.Data,
               encoding: Encoding.UTF8,
-              recursive: true,
             });
             imported++;
           } catch (error) {
-            console.warn(`Failed to import IGC file ${igcFilename}:`, error);
-            this.importFailedFiles.push(`IGC: ${igcFilename}`);
+            console.error(`Failed to import IGC file ${igcFilename}:`, error);
+            this.importFailedFiles.push(`IGC: ${igcFilename} (${error.message})`);
           }
         }
       }
@@ -959,10 +982,22 @@ export default {
       return { imported, failed: this.importFailedFiles.filter(f => f.startsWith('IGC:')).length };
     },
 
-    // Import attachments with tracking
+    // Import attachments (maintenance PDFs) with tracking
     async importAttachmentsFromZip(zip) {
       let imported = 0;
       const attachmentsFolder = BACKUP_CONFIG.FOLDERS.ATTACHMENTS;
+
+      // Ensure the maintenance_pdfs directory exists before writing any files
+      try {
+        await Filesystem.mkdir({
+          path: 'maintenance_pdfs',
+          directory: Directory.Data,
+          recursive: true,
+        });
+      } catch (mkdirError) {
+        // Directory might already exist, ignore error
+        console.log('Maintenance PDFs directory check:', mkdirError.message);
+      }
 
       for (const filename in zip.files) {
         if (filename.startsWith(attachmentsFolder) && !zip.files[filename].dir) {
@@ -971,19 +1006,29 @@ export default {
 
           try {
             const attachmentFile = zip.file(filename);
-            const attachmentContent = await attachmentFile.async('base64');
+            if (!attachmentFile) {
+              console.warn(`Attachment file not found in zip: ${filename}`);
+              this.importFailedFiles.push(`Attachment: ${attachmentFilename} (not found in zip)`);
+              continue;
+            }
             
-            // Write to attachments folder (matching database attachment_path structure)
+            const attachmentContent = await attachmentFile.async('base64');
+            if (!attachmentContent || attachmentContent.length === 0) {
+              console.warn(`Attachment file is empty: ${filename}`);
+              this.importFailedFiles.push(`Attachment: ${attachmentFilename} (empty file)`);
+              continue;
+            }
+            
+            // Write to maintenance_pdfs folder (matching where the app reads from)
             await Filesystem.writeFile({
-              path: `attachments/${attachmentFilename}`,
+              path: `maintenance_pdfs/${attachmentFilename}`,
               data: attachmentContent,
-              directory: Directory.Documents,
-              recursive: true,
+              directory: Directory.Data,
             });
             imported++;
           } catch (error) {
-            console.warn(`Failed to import attachment ${attachmentFilename}:`, error);
-            this.importFailedFiles.push(`Attachment: ${attachmentFilename}`);
+            console.error(`Failed to import attachment ${attachmentFilename}:`, error);
+            this.importFailedFiles.push(`Attachment: ${attachmentFilename} (${error.message})`);
           }
         }
       }
@@ -1056,7 +1101,7 @@ export default {
             try {
               await Filesystem.deleteFile({
                 path: `igc/${flight.igcFilePath}`,
-                directory: Directory.Documents,
+                directory: Directory.Data,
               });
               deletedIGCFiles++;
             } catch (error) {
@@ -1072,7 +1117,7 @@ export default {
             try {
               await Filesystem.deleteFile({
                 path: record.attachment_path,
-                directory: Directory.Documents,
+                directory: Directory.Data,
               });
               deletedAttachments++;
             } catch (error) {

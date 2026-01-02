@@ -537,12 +537,24 @@ export default {
 
         // Store IGC file in app's documents directory (use original filename)
         const fileName = file.name;
+        
+        // Ensure the igc directory exists before writing
+        try {
+          await Filesystem.mkdir({
+            path: 'igc',
+            directory: Directory.Data,
+            recursive: true,
+          });
+        } catch (mkdirError) {
+          // Directory might already exist, ignore error
+          console.log('IGC directory check:', mkdirError.message);
+        }
+        
         await Filesystem.writeFile({
           path: `igc/${fileName}`,
           data: fileContent,
-          directory: Directory.Documents,
+          directory: Directory.Data,
           encoding: Encoding.UTF8,
-          recursive: true,
         });
 
         // Store IGC data
@@ -617,7 +629,7 @@ export default {
           try {
             await Filesystem.deleteFile({
               path: `igc/${uploadedIGC.value.filePath}`,
-              directory: Directory.Documents,
+              directory: Directory.Data,
             });
           } catch (e) {
             // File may not exist, ignore

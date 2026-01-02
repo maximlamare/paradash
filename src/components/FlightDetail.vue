@@ -691,7 +691,7 @@ export default {
         // Try to read from Documents/igc directory
         const result = await Filesystem.readFile({
           path: `igc/${this.flight.igcFilePath}`,
-          directory: Directory.Documents,
+          directory: Directory.Data,
           encoding: Encoding.UTF8,
         });
 
@@ -885,7 +885,7 @@ export default {
         // Read IGC file from device storage
         const result = await Filesystem.readFile({
           path: `igc/${this.flight.igcFilePath}`,
-          directory: Directory.Documents,
+          directory: Directory.Data,
           encoding: Encoding.UTF8,
         });
 
@@ -1018,12 +1018,24 @@ export default {
 
         // Store IGC file in app's documents directory (use original filename)
         const fileName = this.newIgcFile.name;
+        
+        // Ensure the igc directory exists before writing
+        try {
+          await Filesystem.mkdir({
+            path: 'igc',
+            directory: Directory.Data,
+            recursive: true,
+          });
+        } catch (mkdirError) {
+          // Directory might already exist, ignore error
+          console.log('IGC directory check:', mkdirError.message);
+        }
+        
         await Filesystem.writeFile({
           path: `igc/${fileName}`,
           data: fileContent,
-          directory: Directory.Documents,
+          directory: Directory.Data,
           encoding: Encoding.UTF8,
-          recursive: true,
         });
 
         return {

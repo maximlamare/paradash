@@ -2671,7 +2671,7 @@ export default {
         try {
           const result = await Filesystem.readFile({
             path: `igc/${flight.igcFilePath}`,
-            directory: Directory.Documents,
+            directory: Directory.Data,
             encoding: Encoding.UTF8,
           });
           

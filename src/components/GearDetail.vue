@@ -483,6 +483,58 @@
             ></textarea>
           </div>
 
+          <!-- PDF File Management -->
+          <div class="form-group">
+            <label>Attachment (PDF)</label>
+            <div class="pdf-management">
+              <!-- Current PDF File -->
+              <div
+                v-if="editMaintenanceForm.attachment_path && !newEditPdf"
+                class="current-pdf"
+              >
+                <div class="pdf-info-row">
+                  <span>📄 {{ editMaintenanceForm.attachment_filename }}</span>
+                  <button
+                    type="button"
+                    @click="removeEditPdf"
+                    class="remove-pdf-btn"
+                  >
+                    Remove PDF
+                  </button>
+                </div>
+              </div>
+
+              <!-- New PDF File Upload -->
+              <div
+                v-if="!editMaintenanceForm.attachment_path || newEditPdf"
+                class="pdf-upload"
+              >
+                <div class="file-upload-area">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    @change="handleEditPdfSelect"
+                    ref="editPdfFileInput"
+                    class="file-input"
+                  />
+                  <p class="file-hint">Upload a PDF document (optional)</p>
+                </div>
+              </div>
+
+              <!-- New file selected -->
+              <div v-if="newEditPdf" class="new-pdf">
+                <span>📄 New file: {{ newEditPdf.name }}</span>
+                <button
+                  type="button"
+                  @click="clearNewEditPdf"
+                  class="cancel-new-pdf"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="form-actions">
             <button
               type="button"
@@ -491,8 +543,8 @@
             >
               Cancel
             </button>
-            <button type="submit" class="submit-btn">
-              Save Changes
+            <button type="submit" class="submit-btn" :disabled="uploadingEdit">
+              {{ uploadingEdit ? "Saving..." : "Save Changes" }}
             </button>
           </div>
         </form>
@@ -550,7 +602,12 @@ export default {
       date: "",
       category: "",
       description: "",
+      attachment_path: null,
+      attachment_filename: null,
     });
+    const newEditPdf = ref(null);
+    const editPdfFileInput = ref(null);
+    const uploadingEdit = ref(false);
     const isNativePlatform = true; // Mobile-only app
 
     // Load maintenance categories from settings
@@ -725,11 +782,21 @@ export default {
           const base64Data = await readFileAsBase64(selectedPdf.value);
           const fileName = `${Date.now()}_${selectedPdf.value.name}`;
           
+          // Ensure the maintenance_pdfs directory exists before writing
+          try {
+            await Filesystem.mkdir({
+              path: 'maintenance_pdfs',
+              directory: Directory.Data,
+              recursive: true,
+            });
+          } catch (mkdirError) {
+            // Directory might already exist, ignore error
+          }
+          
           await Filesystem.writeFile({
             path: `maintenance_pdfs/${fileName}`,
             data: base64Data,
-            directory: Directory.Documents,
-            recursive: true,
+            directory: Directory.Data,
           });
           
           attachmentPath = fileName;
@@ -782,48 +849,53 @@ export default {
 
     const viewPdf = async (filename) => {
       try {
-        // Get the file URI
-        const uriResult = await Filesystem.getUri({
+        // Read the PDF file as base64
+        const fileResult = await Filesystem.readFile({
           path: `maintenance_pdfs/${filename}`,
-          directory: Directory.Documents,
+          directory: Directory.Data,
         });
         
-        // On Android, we need to use a content:// URI or share intent
+        // Get the original filename (remove timestamp prefix if present)
+        const record = maintenanceRecords.value.find(r => r.attachment_path === filename);
+        const displayFilename = record?.attachment_filename || filename.replace(/^\d+_/, '');
+        
+        // Write to cache directory with proper filename for sharing
+        const cachePath = `cache_${displayFilename}`;
+        await Filesystem.writeFile({
+          path: cachePath,
+          data: fileResult.data,
+          directory: Directory.Cache,
+        });
+        
+        // Get the cache file URI
+        const uriResult = await Filesystem.getUri({
+          path: cachePath,
+          directory: Directory.Cache,
+        });
+        
+        // Share the file (this will prompt user to choose a PDF viewer)
         await Share.share({
-          title: 'View PDF',
-          text: 'Opening maintenance document',
+          title: displayFilename,
           url: uriResult.uri,
-          dialogTitle: 'Open PDF with...',
+          dialogTitle: 'Open with...',
         });
-      } catch (shareError) {
-        console.error("Share error:", shareError);
         
-        // Fallback: try reading and displaying inline
-        try {
-          const fileResult = await Filesystem.readFile({
-            path: `maintenance_pdfs/${filename}`,
-            directory: Directory.Documents,
-          });
-          
-          // Create a data URL and try to open it
-          const dataUrl = `data:application/pdf;base64,${fileResult.data}`;
-          
-          // Create a temporary link and click it
-          const link = document.createElement('a');
-          link.href = dataUrl;
-          link.download = filename;
-          link.target = '_blank';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          successMessage.value = "PDF downloaded. Check your downloads.";
-          setTimeout(() => (successMessage.value = ""), 3000);
-        } catch (fallbackError) {
-          console.error("Fallback error:", fallbackError);
-          errorMessage.value = "Could not open PDF. File may not exist.";
-          setTimeout(() => (errorMessage.value = ""), 3000);
-        }
+        // Clean up cache file after a delay
+        setTimeout(async () => {
+          try {
+            await Filesystem.deleteFile({
+              path: cachePath,
+              directory: Directory.Cache,
+            });
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }, 60000); // Delete after 1 minute
+        
+      } catch (error) {
+        console.error("Error opening PDF:", error);
+        errorMessage.value = "Could not open PDF. File may not exist.";
+        setTimeout(() => (errorMessage.value = ""), 3000);
       }
     };
 
@@ -885,11 +957,21 @@ export default {
           const base64Data = await readFileAsBase64(file);
           const fileName = `${Date.now()}_${file.name}`;
           
+          // Ensure the maintenance_pdfs directory exists before writing
+          try {
+            await Filesystem.mkdir({
+              path: 'maintenance_pdfs',
+              directory: Directory.Data,
+              recursive: true,
+            });
+          } catch (mkdirError) {
+            // Directory might already exist, ignore error
+          }
+          
           await Filesystem.writeFile({
             path: `maintenance_pdfs/${fileName}`,
             data: base64Data,
-            directory: Directory.Documents,
-            recursive: true,
+            directory: Directory.Data,
           });
           
           const attachmentPath = fileName;
@@ -946,7 +1028,7 @@ export default {
           try {
             await Filesystem.deleteFile({
               path: `maintenance_pdfs/${currentRecord.attachment_path}`,
-              directory: Directory.Documents,
+              directory: Directory.Data,
             });
           } catch (e) {
             console.warn("Failed to delete file locally:", e);
@@ -1137,24 +1219,111 @@ export default {
         date: selectedMaintenance.value.date,
         category: selectedMaintenance.value.category,
         description: selectedMaintenance.value.description || "",
+        attachment_path: selectedMaintenance.value.attachment_path || null,
+        attachment_filename: selectedMaintenance.value.attachment_filename || null,
       };
+      newEditPdf.value = null;
       showEditMaintenanceModal.value = true;
     };
 
     const closeEditMaintenanceModal = () => {
       showEditMaintenanceModal.value = false;
+      newEditPdf.value = null;
+      if (editPdfFileInput.value) {
+        editPdfFileInput.value.value = "";
+      }
+    };
+
+    const handleEditPdfSelect = (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const isPdf = file.type === "application/pdf" || 
+                    file.name.toLowerCase().endsWith(".pdf");
+      
+      if (isPdf) {
+        newEditPdf.value = file;
+      } else {
+        alert("Please select a valid PDF file");
+        event.target.value = "";
+      }
+    };
+
+    const clearNewEditPdf = () => {
+      newEditPdf.value = null;
+      if (editPdfFileInput.value) {
+        editPdfFileInput.value.value = "";
+      }
+    };
+
+    const removeEditPdf = () => {
+      editMaintenanceForm.value.attachment_path = null;
+      editMaintenanceForm.value.attachment_filename = null;
     };
 
     const saveMaintenanceEdit = async () => {
+      uploadingEdit.value = true;
       try {
         const recordId = selectedMaintenance.value.id;
         
+        let attachmentPath = editMaintenanceForm.value.attachment_path;
+        let attachmentFilename = editMaintenanceForm.value.attachment_filename;
+
+        // Handle new PDF upload if a new file was selected
+        if (newEditPdf.value) {
+          // Delete old PDF file if it exists
+          if (selectedMaintenance.value.attachment_path) {
+            try {
+              await Filesystem.deleteFile({
+                path: `maintenance_pdfs/${selectedMaintenance.value.attachment_path}`,
+                directory: Directory.Data,
+              });
+            } catch (e) {
+              console.warn("Failed to delete old file locally:", e);
+            }
+          }
+
+          // Store new PDF locally
+          const base64Data = await readFileAsBase64(newEditPdf.value);
+          const fileName = `${Date.now()}_${newEditPdf.value.name}`;
+          
+          // Ensure the maintenance_pdfs directory exists before writing
+          try {
+            await Filesystem.mkdir({
+              path: 'maintenance_pdfs',
+              directory: Directory.Data,
+              recursive: true,
+            });
+          } catch (mkdirError) {
+            // Directory might already exist, ignore error
+          }
+          
+          await Filesystem.writeFile({
+            path: `maintenance_pdfs/${fileName}`,
+            data: base64Data,
+            directory: Directory.Data,
+          });
+          
+          attachmentPath = fileName;
+          attachmentFilename = newEditPdf.value.name;
+        } else if (attachmentPath === null && selectedMaintenance.value.attachment_path) {
+          // PDF was removed - delete the old file
+          try {
+            await Filesystem.deleteFile({
+              path: `maintenance_pdfs/${selectedMaintenance.value.attachment_path}`,
+              directory: Directory.Data,
+            });
+          } catch (e) {
+            console.warn("Failed to delete file locally:", e);
+          }
+        }
+
         const updateData = {
           date: editMaintenanceForm.value.date,
           category: editMaintenanceForm.value.category,
           description: editMaintenanceForm.value.description,
-          attachment_path: selectedMaintenance.value.attachment_path || null,
-          attachment_filename: selectedMaintenance.value.attachment_filename || null,
+          attachment_path: attachmentPath,
+          attachment_filename: attachmentFilename,
         };
 
         await maintenanceOperations.update(recordId, updateData);
@@ -1166,8 +1335,10 @@ export default {
         setTimeout(() => (successMessage.value = ""), 3000);
       } catch (error) {
         console.error("Error updating record:", error);
-        errorMessage.value = "Failed to update record";
+        errorMessage.value = "Failed to update record: " + error.message;
         setTimeout(() => (errorMessage.value = ""), 3000);
+      } finally {
+        uploadingEdit.value = false;
       }
     };
 
@@ -1266,6 +1437,13 @@ export default {
       getRescueWarning,
       getGliderWarning,
       formatWarningDate,
+      // PDF edit mode
+      newEditPdf,
+      editPdfFileInput,
+      uploadingEdit,
+      handleEditPdfSelect,
+      clearNewEditPdf,
+      removeEditPdf,
     };
   },
 };
@@ -2168,5 +2346,85 @@ export default {
   font-size: 0.85rem;
   color: #666;
   font-style: italic;
+}
+
+/* PDF Management in Edit Modal */
+.pdf-management {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.current-pdf {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.pdf-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pdf-info-row span {
+  word-break: break-all;
+  color: #495057;
+}
+
+.remove-pdf-btn {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.remove-pdf-btn:hover {
+  background: #ffcdd2;
+}
+
+.new-pdf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #e8f5f0;
+  border: 1px solid #a8d4bb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.new-pdf span {
+  color: #2d7a52;
+  word-break: break-all;
+}
+
+.cancel-new-pdf {
+  background: #f8f9fa;
+  color: #495057;
+  border: 1px solid #dee2e6;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.cancel-new-pdf:hover {
+  background: #e9ecef;
+}
+
+.pdf-upload {
+  margin-top: 4px;
 }
 </style>
